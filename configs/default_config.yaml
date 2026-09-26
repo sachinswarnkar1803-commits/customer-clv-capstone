@@ -1,0 +1,111 @@
+project:
+  name: "Probabilistic Customer Lifetime Value with Cohort Dynamics and Next-Best-Action Segments"
+  code: "BDS-34"
+  version: "1.0.0"
+  random_seed: 42
+
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  synthetic_dir: "data/synthetic"
+  validation_dir: "data/validation"
+  models_dir: "models"
+  reports_dir: "reports"
+  raw_zip_name: "online_retail_ii.zip"
+  raw_excel_name: "online_retail_II.xlsx"
+  clean_transactions: "data/processed/clean_transactions.parquet"
+  clean_transactions_csv: "data/processed/clean_transactions.csv"
+  customer_features: "data/processed/customer_features.parquet"
+  customer_features_csv: "data/processed/customer_features.csv"
+  clv_segments: "data/processed/customer_clv_segments.parquet"
+  clv_segments_csv: "data/processed/customer_clv_segments.csv"
+
+data_source:
+  url: "https://archive.ics.uci.edu/static/public/502/online+retail+ii.zip"
+  archive_inner_file: "online_retail_II.xlsx"
+  expected_sheets:
+    - "Year 2009-2010"
+    - "Year 2010-2011"
+  columns:
+    invoice: "Invoice"
+    stock_code: "StockCode"
+    description: "Description"
+    quantity: "Quantity"
+    invoice_date: "InvoiceDate"
+    price: "Price"
+    customer_id: "Customer ID"
+    country: "Country"
+
+cleaning:
+  drop_missing_customer_id: true
+  exclude_cancellations: true
+  min_quantity: 1
+  min_unit_price: 0.001
+  max_quantity_outlier: 50000
+  max_price_outlier: 50000
+  deduplicate: true
+  anonymize_customer_id: false
+
+temporal_splits:
+  train_start_date: "2009-12-01"
+  train_end_date: "2010-12-09"       # 1 year training
+  validation_end_date: "2011-06-30"  # ~6 months validation
+  holdout_end_date: "2011-12-09"     # final holdout test
+
+cohort:
+  frequency: "MS" # Monthly start
+  retention_periods: 12
+
+rfm:
+  recency_bins: 5
+  frequency_bins: 5
+  monetary_bins: 5
+
+models:
+  bgnbd:
+    penalizer_coef: 0.05
+  gamma_gamma:
+    penalizer_coef: 0.01
+  survival:
+    time_unit: "days"
+    inactivity_thresholds: [30, 60, 90]
+    parametric_distribution: "weibull"
+
+clv:
+  discount_rate: 0.01 # Monthly discount rate
+  horizons_days: [30, 90, 180, 365]
+  default_horizon_days: 90
+  confidence_level: 0.80
+
+segments:
+  # Action-oriented segments with rule criteria
+  high_value_clv_percentile: 0.75
+  low_value_clv_percentile: 0.25
+  high_risk_inactivity_prob: 0.60
+  medium_risk_inactivity_prob: 0.35
+
+nba:
+  actions:
+    - "RETENTION"
+    - "WIN_BACK"
+    - "UPSELL"
+    - "CROSS_SELL"
+    - "LOYALTY_REWARD"
+    - "REACTIVATION"
+    - "LOW_COST_ENGAGEMENT"
+    - "NO_ACTION"
+  channels:
+    email:
+      cost_per_contact: 0.05
+    sms:
+      cost_per_contact: 0.20
+    direct_mail:
+      cost_per_contact: 2.50
+    push:
+      cost_per_contact: 0.02
+
+simulation:
+  default_campaign_size: 1000
+  default_base_response_rate: 0.12
+  default_discount_pct: 0.10
+  default_avg_incremental_aov: 45.0

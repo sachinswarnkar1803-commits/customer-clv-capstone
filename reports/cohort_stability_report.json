@@ -1,0 +1,10 @@
+{
+  "total_cohorts": 25,
+  "avg_cohort_size": 235.1,
+  "min_cohort_size": 28,
+  "max_cohort_size": 955,
+  "avg_period_1_retention": 0.2117,
+  "std_period_1_retention": 0.0586,
+  "period_1_retention_min": 0.0921,
+  "period_1_retention_max": 0.3529
+}

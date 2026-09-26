@@ -1,0 +1,76 @@
+{
+  "psi_frequency": {
+    "psi_value": 0.0021,
+    "status": "STABLE"
+  },
+  "psi_customer_tenure_days": {
+    "psi_value": 0.719,
+    "status": "SIGNIFICANT_DRIFT"
+  },
+  "psi_total_revenue": {
+    "psi_value": 0.002,
+    "status": "STABLE"
+  },
+  "psi_average_order_value": {
+    "psi_value": 0.0098,
+    "status": "STABLE"
+  },
+  "psi_clv_expected": {
+    "psi_value": 0.0041,
+    "status": "STABLE"
+  },
+  "segment_population_drift": [
+    {
+      "segment": "Champions / High Value Active",
+      "baseline_pct": 22.91,
+      "target_pct": 23.15,
+      "drift_pct_points": 0.25
+    },
+    {
+      "segment": "Dormant",
+      "baseline_pct": 13.16,
+      "target_pct": 7.14,
+      "drift_pct_points": -6.02
+    },
+    {
+      "segment": "Growing Customer",
+      "baseline_pct": 21.47,
+      "target_pct": 0.0,
+      "drift_pct_points": -21.47
+    },
+    {
+      "segment": "High Value At Risk",
+      "baseline_pct": 0.07,
+      "target_pct": 0.0,
+      "drift_pct_points": -0.07
+    },
+    {
+      "segment": "Low Value Active",
+      "baseline_pct": 17.48,
+      "target_pct": 24.25,
+      "drift_pct_points": 6.78
+    },
+    {
+      "segment": "Loyal Mid Value",
+      "baseline_pct": 11.14,
+      "target_pct": 31.37,
+      "drift_pct_points": 20.23
+    },
+    {
+      "segment": "New Customer",
+      "baseline_pct": 13.6,
+      "target_pct": 14.09,
+      "drift_pct_points": 0.49
+    },
+    {
+      "segment": "Reactivation Candidate",
+      "baseline_pct": 0.19,
+      "target_pct": 0.0,
+      "drift_pct_points": -0.19
+    }
+  ],
+  "overall_health": {
+    "max_psi": 0.719,
+    "overall_status": "ALERT"
+  }
+}

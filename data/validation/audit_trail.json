@@ -1,0 +1,74 @@
+{
+  "timestamp": "2026-09-24T14:31:45.966968+00:00",
+  "pipeline_version": "1.0.0",
+  "cleaning_config": {
+    "drop_missing_customer_id": true,
+    "exclude_cancellations": true,
+    "min_quantity": 1,
+    "min_unit_price": 0.001,
+    "max_quantity_outlier": 50000,
+    "max_price_outlier": 50000.0,
+    "deduplicate": true,
+    "anonymize_customer_id": false
+  },
+  "steps": [
+    {
+      "step": "drop_missing_customer_id",
+      "rows_affected": 243007,
+      "remaining_rows": 824364,
+      "notes": "Guest checkouts without persistent customer ID cannot be modeled longitudinally."
+    },
+    {
+      "step": "exclude_cancellations",
+      "rows_affected": 19494,
+      "remaining_rows": 805620,
+      "notes": "Invoices prefixed with 'C' indicate canceled transactions."
+    },
+    {
+      "step": "filter_non_positive_quantity",
+      "rows_affected": 22950,
+      "remaining_rows": 805620,
+      "notes": "Quantity must be >= 1 for completed purchases."
+    },
+    {
+      "step": "filter_non_positive_price",
+      "rows_affected": 6207,
+      "remaining_rows": 805549,
+      "notes": "Unit price must be >= 0.001 GBP."
+    },
+    {
+      "step": "filter_extreme_outliers",
+      "rows_affected": 2,
+      "remaining_rows": 805547,
+      "notes": "Extreme outliers (data entry errors or manual adjustments)."
+    },
+    {
+      "step": "filter_invalid_dates",
+      "rows_affected": 0,
+      "remaining_rows": 805547,
+      "notes": "Dates must be within official dataset scope (2009-12-01 to 2011-12-31)."
+    },
+    {
+      "step": "deduplicate_records",
+      "rows_affected": 34337,
+      "remaining_rows": 779421,
+      "notes": "Exact duplicate line items removed."
+    }
+  ],
+  "metrics": {
+    "total_clean_revenue_gbp": 17128599.22,
+    "unique_customers": 5878,
+    "unique_invoices": 36967,
+    "unique_products": 4630,
+    "min_transaction_date": "2009-12-01",
+    "max_transaction_date": "2011-12-09",
+    "missing_customer_rows": 243007,
+    "cancelled_rows": 19494,
+    "return_rows": 22950,
+    "zero_price_rows": 6207,
+    "duplicate_rows": 34337
+  },
+  "initial_row_count": 1067371,
+  "final_clean_row_count": 779421,
+  "retention_rate_pct": 73.02
+}

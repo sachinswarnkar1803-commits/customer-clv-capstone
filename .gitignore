@@ -1,0 +1,47 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Data artifacts (do not commit huge raw binaries or sensitive exports)
+data/raw/*.zip
+data/raw/*.xlsx
+data/raw/*.csv
+data/processed/*.parquet
+data/processed/*.csv
+data/synthetic/*.parquet
+data/synthetic/*.csv
+
+# Keep directory structure intact
+!data/raw/README.md
+!data/processed/README.md
+!data/synthetic/README.md
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment and secrets
+.env
+.env.*
+secrets.yaml
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Models and large reports
+models/*.pkl
+models/*.joblib
