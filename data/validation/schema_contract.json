@@ -1,0 +1,16 @@
+{
+  "required_columns": [
+    "Invoice",
+    "StockCode",
+    "Description",
+    "Quantity",
+    "InvoiceDate",
+    "Price",
+    "Customer ID",
+    "Country"
+  ],
+  "expected_sheets": [
+    "Year 2009-2010",
+    "Year 2010-2011"
+  ]
+}

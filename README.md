@@ -2,8 +2,12 @@
 
 **Course / Programme**: T.Y. B.Sc. Data Science – Semester V  
 **Project Code**: BDS-34  
-**Team**: 2 Students  
-**Status**: Capstone Production-Grade Implementation  
+**Project Creators / Team**:
+- **Sachin Swarnkar** (Roll No. `TDDS028B`)
+- **Shivam Yadav** (Roll No. `TDDS044B`)  
+**Status**: Industry-Oriented Capstone Implementation  
+
+> **Project Attribution**: This capstone project is made by **Sachin Swarnkar** (Roll No. `TDDS028B`) and team partner **Shivam Yadav** (Roll No. `TDDS044B`).  
 
 ---
 
@@ -21,10 +25,10 @@ This capstone project implements an end-to-end, industry-standard, reproducible 
   - **BG/NBD (Beta-Geometric / Negative Binomial Distribution)**: Probabilistic repeat transaction counts and $P(\text{Alive})$.
   - **Gamma-Gamma Model**: Probabilistic expected average monetary basket spend.
   - **Survival Analysis (Kaplan-Meier & Weibull Hazard)**: Customer inactivity probabilities over 30, 60, and 90-day horizons.
-- **CLV Uncertainty Quantification**: 80% bootstrap confidence intervals ($[CLV_{lower}, CLV_{upper}]$) across multiple horizons (30, 90, 180, 365 days).
+- **CLV Uncertainty Quantification**: 80% Monte Carlo predictive intervals ($[CLV_{lower}, CLV_{upper}]$) across multiple horizons (30, 90, 180, 365 days).
 - **Action-Oriented Segmentation & Next-Best-Action (NBA) Engine**: Translating probabilistic distributions into high-leverage business actions (`RETENTION`, `WIN_BACK`, `UPSELL`, `CROSS_SELL`, `LOYALTY_REWARD`, `NO_ACTION`) with prioritized channels and estimated touch costs.
 - **Interactive Campaign Scenario Simulator**: What-if ROI modeling under parameterized budget, discount, and uplift assumptions.
-- **Interactive Multi-Page Streamlit Dashboard**: Production-grade visual command center for executive oversight, customer drill-down, and model monitoring.
+- **Interactive Multi-Page Streamlit Dashboard**: Professional interactive decision workspace for executive oversight, customer drill-down, and model monitoring.
 
 ---
 
@@ -98,7 +102,7 @@ graph TD
    ```bash
    python -m src.pipeline
    ```
-   This generates the cleaned transaction dataset, customer behavioral features, cohort retention matrices, probabilistic models, CLV estimates with uncertainty bounds, action segments, and NBA recommendations.
+   This generates the cleaned transaction dataset, customer behavioral features, cohort retention matrices, probabilistic models, CLV estimates with predictive intervals, action segments, and NBA recommendations.
 
 3. **Run Automated Test Suite**:
    ```bash
@@ -136,7 +140,7 @@ customer-clv-capstone/
 │   ├── features/                    # Feature store, temporal splits, and aggregations
 │   ├── cohort/                      # Monthly cohort retention and revenue dynamics
 │   ├── models/                      # BG/NBD, Gamma-Gamma, Survival, and Baseline models
-│   ├── clv/                         # Probabilistic CLV & bootstrap uncertainty bounds
+│   ├── clv/                         # Probabilistic CLV & predictive uncertainty bounds
 │   ├── segmentation/                # Value-Risk matrix and action-oriented clustering
 │   ├── nba/                         # Next-Best-Action rules and priority scoring
 │   ├── simulation/                  # Campaign scenario simulator and ROI modeling
@@ -161,6 +165,79 @@ customer-clv-capstone/
 
 - **Temporal Strictness**: Zero future leakage. Cutoff dates cleanly split observation windows from holdout ground truth.
 - **Statistical Rigor**: Verification of Gamma-Gamma independence assumptions prior to model fitting.
-- **Uncertainty Quantification**: 80% bootstrap prediction intervals provide marketers with empirical risk bounds rather than misleading point precision.
+- **Uncertainty Quantification**: 80% Monte Carlo predictive intervals provide marketers with empirical risk bounds rather than misleading point precision.
 - **Prescriptive Analytics**: Actionable transition from descriptive analytics ($CLV = £850$) to prescriptive intervention (*"High Value At Risk; Trigger Win-Back SMS with £15 discount voucher; Expected ROI = 280%"*).
 - **Synthetic Campaign Isolation**: Strictly labeled simulation layer ensuring academic integrity.
+
+
+## Review and reproducibility notes
+
+- The inactivity model defines an event as reaching the configured 90-day inactivity threshold and treats customers who have not reached that threshold by the cutoff as right-censored.
+- CLV uncertainty is reported as an empirical Monte Carlo predictive interval. It is not described as a bootstrap confidence interval for fitted parameters.
+- Segment stability is evaluated with a customer-level transition matrix and agreement rate.
+- `requirements.txt` uses exact package versions for reproducible environments.
+- CI runs tests, Python compilation, `pip-audit`, and `bandit`.
+- Docker starts the dashboard from generated artifacts when available; if raw data is present but artifacts are missing, it can run the pipeline automatically.
+- The Streamlit application is an analytical capstone prototype and does not claim production authentication/RBAC.
+- Campaign response and uplift inputs in the simulator are synthetic planning assumptions, not observed campaign results.
+
+## Interactive Web Application
+
+The project includes a professional Streamlit web application with a dedicated **Customer Action Studio** for one-to-one model interaction.
+
+### Start the application
+
+From the project root:
+
+```bash
+python scripts/run_dashboard.py
+```
+
+Or:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+### One-customer model test
+
+Open **Customer Action Studio** in the sidebar. Select a customer, edit the observed behavioural inputs if you want to test sensitivity, and click **Score Customer**.
+
+The interface returns:
+
+- P(Alive) from BG/NBD
+- Expected future purchases
+- Gamma-Gamma expected monetary value
+- CLV prediction and uncertainty interval
+- Weibull inactivity probability
+- Inactivity risk tier
+- Action segment
+- Next-best-action
+- Recommended channel
+- Expected incremental value
+
+The form does not modify the stored dataset.
+
+### Command-line model test
+
+After running the pipeline:
+
+```bash
+python scripts/score_customer.py --customer-id YOUR_CUSTOMER_ID
+```
+
+### Campaign Scenario Simulator
+
+The Campaign Scenario Simulator is part of the same Streamlit application. It uses the repository root for imports, so it can be launched from the project root without a `src` import error.
+
+The simulator is explicitly a **what-if planning tool**. Response rate, incremental AOV, discount, and costs are user-provided assumptions; they are not claimed to be observed campaign results.
+
+---
+
+## Authors & Contributors
+
+This capstone project is developed by:
+- **Sachin Swarnkar** — Roll No. `TDDS028B`
+- **Shivam Yadav** — Roll No. `TDDS044B`
+
+T.Y. B.Sc. Data Science – Semester V | Project Code: BDS-34

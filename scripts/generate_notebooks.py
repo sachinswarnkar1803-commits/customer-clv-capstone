@@ -181,7 +181,7 @@ inact_probs.head()"""
         (
             "08_clv_model.ipynb",
             "08. Probabilistic CLV & 80% Uncertainty Intervals",
-            "Combine transaction and spend expectations with monthly discounting and bootstrap posterior sampling.",
+            "Combine transaction and spend expectations with monthly discounting and Monte Carlo predictive simulation.",
             [
                 """import sys
 sys.path.insert(0, '..')
@@ -197,7 +197,7 @@ ggf = MonetaryModelGammaGamma()
 ggf.load_model()
 
 clv_calc = ProbabilisticCLVCalculator()
-clv_df = clv_calc.compute_clv(features_df, bgf, ggf, n_bootstrap_samples=30)
+clv_df = clv_calc.compute_clv(features_df, bgf, ggf, n_simulation_samples=30)
 clv_df[['customer_id', 'clv_expected_90d', 'clv_lower_80pct', 'clv_upper_80pct', 'clv_uncertainty_spread']].head()"""
             ]
         ),

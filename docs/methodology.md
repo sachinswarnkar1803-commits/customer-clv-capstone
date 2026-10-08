@@ -37,7 +37,7 @@ To model this stochastic process, we implement the seminal **BG/NBD (Beta-Geomet
    $$E[M \mid p, q, \gamma, x, m_x] = \frac{q - 1}{p x + q - 1} \cdot \frac{\gamma p}{q - 1} + \frac{p x}{p x + q - 1} \cdot m_x$$
    This is an empirical Bayes weighted average between the customer's observed average spend $m_x$ and the population mean spend $\frac{\gamma p}{q - 1}$.
 
-### 2.3 Discounted CLV & Bootstrap Uncertainty Intervals
+### 2.3 Discounted CLV & Monte Carlo Predictive Intervals
 Discounted expected customer lifetime value over horizon $H$ with monthly discount factor $d$ is:
 $$\text{CLV}_i(H) = E[Y_i(H)] \cdot E[M_i] \cdot \left(1 + d\right)^{-H / 60}$$
 

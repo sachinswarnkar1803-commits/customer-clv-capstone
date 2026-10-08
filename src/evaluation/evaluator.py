@@ -104,9 +104,9 @@ class ModelEvaluator:
             "below_lower_bound_pct": round(below * 100.0, 2),
             "above_upper_bound_pct": round(above * 100.0, 2),
             "evaluated_customers": len(common_idx),
-            "status": "PASS: Empirical coverage is well-calibrated."
-            if abs(empirical_coverage - nominal_level) <= 0.15
-            else "NOTE: Coverage diverges slightly from nominal due to extreme skewness in retail spend.",
+            "status": "Coverage is within the configured tolerance band."
+            if abs(empirical_coverage - nominal_level) <= 0.05
+            else "Coverage is outside the configured tolerance band; treat the interval as a model limitation and investigate recalibration.",
         }
 
         print(f"[Evaluation] Interval Coverage: {coverage_report['empirical_coverage_pct']}% "
@@ -145,11 +145,36 @@ class ModelEvaluator:
 
         calibration_report = {
             "brier_score": round(brier, 4),
-            "brier_interpretation": "Excellent (Lower is better, benchmark random = 0.25)" if brier < 0.20 else "Moderate",
+            "brier_interpretation": "Lower is better; compare with a prevalence baseline and inspect the reliability table." ,
             "calibration_bins": bin_records,
         }
         print(f"[Evaluation] Inactivity Calibration Brier Score: {brier:.4f}")
         return calibration_report
+
+
+    def evaluate_segment_stability(
+        self,
+        baseline_segments: pd.Series,
+        target_segments: pd.Series,
+    ) -> Dict[str, Any]:
+        """Measure segment membership stability and customer-level transitions."""
+        common = baseline_segments.index.intersection(target_segments.index)
+        if len(common) == 0:
+            return {"evaluated_customers": 0, "agreement_rate": None, "transition_matrix": []}
+
+        base = baseline_segments.loc[common].astype(str)
+        target = target_segments.loc[common].astype(str)
+        agreement = float((base == target).mean())
+        transition = pd.crosstab(base, target, normalize="index").round(4)
+        counts = pd.crosstab(base, target)
+        return {
+            "evaluated_customers": int(len(common)),
+            "agreement_rate": round(agreement, 4),
+            "agreement_rate_pct": round(agreement * 100.0, 2),
+            "transition_matrix": transition.reset_index().to_dict(orient="records"),
+            "transition_counts": counts.reset_index().to_dict(orient="records"),
+            "method": "Row-normalized customer segment transition matrix",
+        }
 
     def evaluate_sparse_history_sensitivity(
         self,
@@ -213,6 +238,7 @@ class ModelEvaluator:
         coverage_report: Dict[str, Any],
         calibration_report: Dict[str, Any],
         sparse_df: pd.DataFrame,
+        segment_stability: Optional[Dict[str, Any]] = None,
     ):
         """Save evaluation results to reports/model_evaluation_report.json and .md."""
         rep_dir = self.root / self.config.paths.reports_dir
@@ -223,6 +249,7 @@ class ModelEvaluator:
             "interval_coverage": coverage_report,
             "calibration": calibration_report,
             "sparse_history_sensitivity": sparse_df.to_dict(orient="records"),
+            "segment_stability": segment_stability or {},
         }
 
         # 1. JSON report
@@ -257,5 +284,10 @@ class ModelEvaluator:
             f.write(df_to_md(pd.DataFrame(calibration_report["calibration_bins"])))
             f.write("\n\n## 4. Sparse-History Sensitivity\n\n")
             f.write(df_to_md(sparse_df))
+            f.write("\n\n## 5. Segment Stability and Customer Transitions\n\n")
+            if segment_stability:
+                f.write(f"- Evaluated customers: {segment_stability.get('evaluated_customers', 0):,}\n")
+                f.write(f"- Segment agreement rate: {segment_stability.get('agreement_rate_pct', 0):.2f}%\n")
+                f.write("- The transition matrix is row-normalized and is intended for monitoring, not as a target performance score.\n")
 
         print(f"[Evaluation] Saved evaluation reports to {rep_dir}")

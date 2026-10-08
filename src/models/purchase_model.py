@@ -131,7 +131,7 @@ class PurchaseModelBGNBD:
         models_dir = self.root / self.config.paths.models_dir
         target = Path(filepath) if filepath else models_dir / "bg_nbd_model.pkl"
         with open(target, "rb") as f:
-            save_data = pickle.load(f)
+            save_data = pickle.load(f)  # nosec B301 - local, repository-generated model artifact only
         self.model = BetaGeoFitter(penalizer_coef=save_data.get("penalizer_coef", 0.05))
         self.model.params_ = save_data["params_"]
         self.diagnostics = save_data.get("diagnostics", {})

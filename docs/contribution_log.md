@@ -1,29 +1,46 @@
-# Capstone Contribution Log - BDS-34
+# Contribution Evidence Log — BDS-34
 
-**Programme**: T.Y. B.Sc. Data Science – Semester V  
-**Project Code**: BDS-34  
-**Project Title**: Probabilistic Customer Lifetime Value with Cohort Dynamics and Next-Best-Action Segments  
-**Team**: Student 1 (Sachin - Lead Engineer / Architect) & Student 2 (Co-Lead / Analyst)  
+**Project**: Probabilistic Customer Lifetime Value with Cohort Dynamics and Next-Best-Action Segments  
+**Team**: Sachin Swarnkar (Roll No. `TDDS028B`) and Shivam Yadav (Roll No. `TDDS044B`)  
 
----
+## Evidence policy
 
-## Contribution Audit Trail
+This document records deliverables that can be supported by repository evidence. It does **not** manufacture commit, pull-request, review, or pair-programming history. The supplied project snapshot contained one initial Git commit, so future contribution claims must be backed by actual Git commits, branches, pull requests, or review records.
 
-| Date | Student | Activity | Evidence & Deliverable | Hours |
-| :--- | :--- | :--- | :--- | :--- |
-| 2026-09-24 | Student 1 | Project architecture setup, repository scaffolding, configuration system design | `customer-clv-capstone/`, `configs/default_config.yaml`, `src/config/config.py` | 4.0 |
-| 2026-09-24 | Student 2 | Requirements analysis, data dictionary compilation, threat modeling | `docs/data_dictionary.md`, `docs/threat_model.md`, `README.md` | 3.5 |
-| 2026-09-24 | Student 1 | Ingestion pipeline implementation & UCI dataset retrieval module | `src/data/ingest.py`, `tests/unit/test_validation.py` | 4.0 |
-| 2026-09-24 | Student 2 | Data validation engine, audit trail tracking, and schema test suites | `src/validation/validator.py`, data quality reporting | 4.0 |
-| 2026-09-24 | Student 1 | Feature engineering pipeline, temporal split engine, RFM baseline | `src/features/`, `src/models/baseline.py` | 4.5 |
-| 2026-09-24 | Student 2 | Cohort analysis module, retention matrix computations, and visualizations | `src/cohort/cohort_analysis.py` | 3.5 |
-| 2026-09-24 | Student 1 | Probabilistic BG/NBD purchase model & Gamma-Gamma monetary model | `src/models/purchase_model.py`, `src/models/monetary_model.py` | 5.0 |
-| 2026-09-24 | Student 2 | Customer inactivity survival modeling (Kaplan-Meier, Weibull hazards) | `src/models/inactivity_model.py` | 4.0 |
-| 2026-09-24 | Student 1 | Probabilistic CLV engine with bootstrap uncertainty intervals | `src/clv/clv_calculator.py` | 4.5 |
-| 2026-09-24 | Student 2 | Action-oriented customer segmentation and Next-Best-Action engine | `src/segmentation/`, `src/nba/` | 4.0 |
-| 2026-09-24 | Student 1 | Interactive campaign scenario simulator and synthetic experimentation layer | `src/simulation/campaign_simulator.py` | 4.0 |
-| 2026-09-24 | Student 2 | Holdout evaluation, calibration, coverage, and model monitoring | `src/evaluation/`, `src/monitoring/` | 4.5 |
-| 2026-09-24 | Student 1 & 2 | Streamlit multi-page command dashboard implementation | `dashboard/app.py`, `dashboard/pages/` | 6.0 |
-| 2026-09-24 | Student 1 & 2 | Integration testing, Docker containerization, and final capstone documentation | `tests/integration/`, `Dockerfile`, `docker-compose.yml` | 3.5 |
+## Verified project areas
 
-*Note: All work is developed iteratively in pair programming with code reviews, ensuring comprehensive mutual understanding of both the mathematical modeling and software engineering components.*
+| Area | Repository evidence |
+|---|---|
+| Data ingestion and validation | `src/data/`, `src/validation/`, validation reports |
+| Temporal feature engineering | `src/features/` |
+| Cohort dynamics | `src/cohort/` and cohort artifacts |
+| BG/NBD and Gamma-Gamma | `src/models/purchase_model.py`, `src/models/monetary_model.py` |
+| Time-to-inactivity survival | `src/models/inactivity_model.py` |
+| CLV and uncertainty | `src/clv/clv_calculator.py` |
+| Action segmentation | `src/segmentation/segmenter.py` |
+| Next-Best-Action | `src/nba/nba_engine.py` |
+| Scenario simulation | `src/simulation/campaign_simulator.py` |
+| Evaluation and monitoring | `src/evaluation/`, `src/monitoring/` |
+| Interactive application | `dashboard/app.py` |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` |
+| Deployment | `Dockerfile`, `docker-compose.yml`, `scripts/docker_entrypoint.sh` |
+| Requirements analysis | `docs/problem_brief.md` |
+| Solution design | `docs/solution_design_pack.md`, `docs/architecture/` |
+
+## Remediation evidence to commit as a team
+
+Create genuine commits and code reviews for the changes below. Use the real student names and dates from the team's actual Git history when completing the final submission:
+
+1. Correct time-to-inactivity event construction.
+2. Rename and document Monte Carlo predictive intervals.
+3. Add segment transition/stability evaluation.
+4. Align the 90-day inactivity calibration target with the prediction horizon.
+5. Add reproducible Docker startup behaviour.
+6. Add security/dependency scanning to CI.
+7. Add performance evidence.
+8. Add the industry problem brief and solution design pack.
+9. Replace the dashboard with the professional no-emoji interface.
+
+## Final submission requirement
+
+The team should keep the contribution log synchronized with actual Git evidence. Do not claim a pull request, review, pair-programming session, or commit unless it exists in the repository or the team's submission evidence.

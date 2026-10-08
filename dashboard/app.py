@@ -1,796 +1,625 @@
-"""Interactive Streamlit Command Dashboard for BDS-34 Capstone Project.
-
-Probabilistic Customer Lifetime Value with Cohort Dynamics and Next-Best-Action Segments.
-Author: BDS-34 Capstone Team (T.Y. B.Sc. Data Science - Semester V)
-"""
+"""Professional interactive Streamlit dashboard for BDS-34."""
 
 import json
+import sys
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
 
-# Configure Streamlit page
 st.set_page_config(
-    page_title="Customer Intelligence Platform | BDS-34",
-    page_icon="💎",
+    page_title="Customer Intelligence | BDS-34",
+    page_icon="C",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom High-End Styling (Dark/Glassmorphic Modern UI)
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-    
-    .main-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
-        padding: 24px 32px;
-        border-radius: 16px;
-        margin-bottom: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    }
-    
-    .main-header h1 {
-        color: #ffffff;
-        font-size: 26px;
-        font-weight: 800;
-        margin: 0;
-        letter-spacing: -0.5px;
-    }
-    
-    .main-header p {
-        color: #94a3b8;
-        font-size: 14px;
-        margin-top: 6px;
-        margin-bottom: 0;
-    }
-    
-    .metric-card {
-        background: rgba(30, 41, 59, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        padding: 20px;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .metric-card:hover {
-        border-color: rgba(99, 102, 241, 0.4);
-        transform: translateY(-2px);
-    }
-    .metric-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
-    .metric-value {
-        font-size: 28px;
-        font-weight: 800;
-        color: #f8fafc;
-        margin-top: 6px;
-    }
-    .metric-subtitle {
-        font-size: 12px;
-        color: #38bdf8;
-        margin-top: 4px;
-        font-weight: 500;
-    }
-    
-    .badge-pill {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 9999px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .badge-champions { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
-    .badge-risk { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
-    .badge-growing { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
-    .badge-loyal { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid #8b5cf6; }
-    .badge-new { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid #eab308; }
-    .badge-dormant { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid #64748b; }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        padding: 8px 16px;
-        font-weight: 600;
-    }
-</style>
-""", unsafe_allow_html=True)
+BASE = Path(__file__).resolve().parent.parent
+# Make the repository root importable when Streamlit launches this file directly.
+if str(BASE) not in sys.path:
+    sys.path.insert(0, str(BASE))
+
+st.markdown(
+    """
+    <style>
+      .block-container {padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1500px;}
+      [data-testid="stSidebar"] {border-right: 1px solid #e5e7eb;}
+      .hero {padding: 1.5rem 1.75rem; border: 1px solid #e5e7eb; border-radius: 16px; background: linear-gradient(135deg,#f8fafc,#eef2ff); margin-bottom: 1.25rem;}
+      .hero h1 {margin:0; font-size:2rem; letter-spacing:-0.03em; color:#111827;}
+      .hero p {margin:.45rem 0 0; color:#4b5563; font-size:.95rem;}
+      .section-note {color:#6b7280; font-size:.88rem; margin-top:-.4rem; margin-bottom:1rem;}
+      .status {padding:.7rem .9rem; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; color:#374151;}
+      .decision {padding:1rem; border-left:4px solid #4f46e5; background:#f8fafc; border-radius:8px;}
+      .small {font-size:.82rem;color:#6b7280;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
-# Data loading helpers with Streamlit caching
-@st.cache_data
+def _read_table(stem: str) -> pd.DataFrame:
+    pq = BASE / "data" / "processed" / f"{stem}.parquet"
+    csv = BASE / "data" / "processed" / f"{stem}.csv"
+    if pq.exists():
+        return pd.read_parquet(pq)
+    if csv.exists():
+        return pd.read_csv(csv)
+    raise FileNotFoundError(stem)
+
+
+@st.cache_data(show_spinner=False)
 def load_dashboard_data():
-    """Load analytical tables and reports."""
-    base_dir = Path(__file__).resolve().parent.parent
+    data = {}
+    data["customers"] = _read_table("customer_clv_segments")
+    data["transactions"] = _read_table("clean_transactions")
+    for name in ["cohort_retention_matrix", "cohort_summary"]:
+        path = BASE / "data" / "processed" / f"{name}.csv"
+        data[name] = pd.read_csv(path, index_col=0) if name == "cohort_retention_matrix" and path.exists() else (pd.read_csv(path) if path.exists() else None)
 
-    # Processed datasets
-    clv_path = base_dir / "data/processed/customer_clv_segments.parquet"
-    if not clv_path.exists():
-        clv_path = base_dir / "data/processed/customer_clv_segments.csv"
+    for name in ["model_evaluation_report.json", "monitoring_report.json", "data_quality_report.md"]:
+        path = BASE / "reports" / name
+        if path.exists():
+            if path.suffix == ".json":
+                data[name] = json.loads(path.read_text(encoding="utf-8"))
+            else:
+                data[name] = path.read_text(encoding="utf-8")
+        else:
+            data[name] = None
 
-    clean_tx_path = base_dir / "data/processed/clean_transactions.parquet"
-    if not clean_tx_path.exists():
-        clean_tx_path = base_dir / "data/processed/clean_transactions.csv"
-
-    ret_matrix_path = base_dir / "data/processed/cohort_retention_matrix.csv"
-    cohort_summary_path = base_dir / "data/processed/cohort_summary.csv"
-
-    # Reports
-    eval_report_path = base_dir / "reports/model_evaluation_report.json"
-    drift_report_path = base_dir / "reports/monitoring_report.json"
-    quality_report_path = base_dir / "reports/data_quality_report.md"
-
-    # Read data
-    df_customers = pd.read_parquet(clv_path) if str(clv_path).endswith(".parquet") else pd.read_csv(clv_path)
-    df_clean_tx = pd.read_parquet(clean_tx_path) if str(clean_tx_path).endswith(".parquet") else pd.read_csv(clean_tx_path)
-
-    df_retention = pd.read_csv(ret_matrix_path, index_col=0) if ret_matrix_path.exists() else None
-    df_cohort_summary = pd.read_csv(cohort_summary_path) if cohort_summary_path.exists() else None
-
-    eval_data = {}
-    if eval_report_path.exists():
-        with open(eval_report_path, "r", encoding="utf-8") as f:
-            eval_data = json.load(f)
-
-    drift_data = {}
-    if drift_report_path.exists():
-        with open(drift_report_path, "r", encoding="utf-8") as f:
-            drift_data = json.load(f)
-
-    return df_customers, df_clean_tx, df_retention, df_cohort_summary, eval_data, drift_data
+    validation_path = BASE / "data" / "validation" / "audit_trail.json"
+    data["validation_audit"] = json.loads(validation_path.read_text(encoding="utf-8")) if validation_path.exists() else None
+    return data
 
 
 try:
-    df_customers, df_clean_tx, df_retention, df_cohort_summary, eval_data, drift_data = load_dashboard_data()
-except Exception as e:
-    st.error(f"Error loading analytical data: {e}. Please ensure `python -m src.pipeline` has been executed.")
+    d = load_dashboard_data()
+except Exception as exc:
+    st.markdown('<div class="hero"><h1>Customer Intelligence Platform</h1><p>BDS-34 capstone dashboard</p></div>', unsafe_allow_html=True)
+    st.error("Analytical artifacts are not available yet.")
+    st.write("Run the pipeline once, then reload this page:")
+    st.code("python scripts/run_pipeline.py", language="bash")
+    st.caption(f"Details: {exc}")
     st.stop()
 
+customers = d["customers"].copy()
+tx = d["transactions"].copy()
+retention = d["cohort_retention_matrix"]
+cohort_summary = d["cohort_summary"]
+evaluation = d["model_evaluation_report.json"] or {}
+monitoring = d["monitoring_report.json"] or {}
 
-# Sidebar Navigation
-st.sidebar.image("https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80", use_container_width=True)
-st.sidebar.title("💎 Customer Intelligence")
-st.sidebar.caption("Capstone Project BDS-34 • Sem V")
+for col in ["transaction_date", "first_purchase_date", "last_purchase_date"]:
+    if col in tx.columns:
+        tx[col] = pd.to_datetime(tx[col], errors="coerce")
+for col in ["first_purchase_date", "last_purchase_date"]:
+    if col in customers.columns:
+        customers[col] = pd.to_datetime(customers[col], errors="coerce")
 
-nav_choice = st.sidebar.radio(
-    "Navigation Menu",
-    [
-        "📊 Executive Overview",
-        "👥 Cohort & Retention Dynamics",
-        "🔍 Customer 360 Explorer",
-        "🎯 Action Segments",
-        "⚡ Next-Best-Action Engine",
-        "🎲 Campaign Simulator",
-        "🛡️ Model Monitoring & Health",
-    ],
-    index=0,
-)
+st.sidebar.markdown("## Customer Intelligence")
+st.sidebar.caption("BDS-34 | Probabilistic CLV and Next-Best-Action")
 
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "**Academic Provenance**\n"
-    "- Dataset: UCI Online Retail II\n"
-    "- Models: BG/NBD, Gamma-Gamma, Weibull\n"
-    "- Horizon: 90 Days (Configurable)\n"
-    "- Uncertainty: 80% Bootstrap CI"
-)
+pages = [
+    "Executive Overview",
+    "Cohort Dynamics",
+    "Customer Action Studio",
+    "Customer 360",
+    "Action Segments",
+    "Next-Best-Action",
+    "Campaign Simulator",
+    "Model Evaluation",
+]
+page = st.sidebar.radio("Workspace", pages, index=0)
 
-# -----------------------------------------------------------------------------
-# PAGE 1: EXECUTIVE OVERVIEW
-# -----------------------------------------------------------------------------
-if nav_choice == "📊 Executive Overview":
-    st.markdown("""
-    <div class="main-header">
-        <h1>Executive Customer Intelligence Overview</h1>
-        <p>Probabilistic Customer Lifetime Value, Inactivity Hazard, and Prescriptive Next-Best-Action Dashboard</p>
-    </div>
-    """, unsafe_allow_html=True)
+st.sidebar.divider()
+st.sidebar.markdown("**Model context**")
+st.sidebar.caption("Purchase model: BG/NBD")
+st.sidebar.caption("Monetary model: Gamma-Gamma")
+st.sidebar.caption("Inactivity model: Weibull survival")
+st.sidebar.caption("CLV interval: Monte Carlo prediction")
+st.sidebar.caption("Campaign data: synthetic simulation")
 
-    # Top KPI Bar
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Active Customers</div>
-            <div class="metric-value">{len(df_customers):,}</div>
-            <div class="metric-subtitle">Training Cohort</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        tot_rev = df_clean_tx["revenue"].sum()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Total Clean Spend</div>
-            <div class="metric-value">£{tot_rev/1e6:.2f}M</div>
-            <div class="metric-subtitle">779,421 verified txns</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c3:
-        avg_clv = df_customers["clv_expected_90d"].mean()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Avg 90-Day CLV</div>
-            <div class="metric-value">£{avg_clv:.2f}</div>
-            <div class="metric-subtitle">Discounted Expected</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c4:
-        champions_cnt = (df_customers["action_segment"] == "Champions / High Value Active").sum()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Champions (VIP)</div>
-            <div class="metric-value">{champions_cnt:,}</div>
-            <div class="metric-subtitle">{(champions_cnt/len(df_customers))*100:.1f}% of base</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c5:
-        risk_cnt = (df_customers["nba_risk_level"] == "HIGH").sum()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">High Churn Hazard</div>
-            <div class="metric-value">{risk_cnt:,}</div>
-            <div class="metric-subtitle">Immediate intervention</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Charts Row
-    col_left, col_right = st.columns([6, 4])
-
-    with col_left:
-        st.subheader("🎯 Customer Distribution by Action Segment")
-        seg_counts = df_customers["action_segment"].value_counts().reset_index()
-        seg_counts.columns = ["Segment", "Count"]
-
-        fig_seg = px.bar(
-            seg_counts,
-            x="Count",
-            y="Segment",
-            orientation="h",
-            color="Segment",
-            color_discrete_sequence=px.colors.qualitative.Prism,
-            text="Count",
-        )
-        fig_seg.update_layout(
-            template="plotly_dark",
-            showlegend=False,
-            height=360,
-            margin=dict(l=10, r=10, t=10, b=10),
-            yaxis={'categoryorder': 'total ascending'},
-        )
-        st.plotly_chart(fig_seg, use_container_width=True)
-
-    with col_right:
-        st.subheader("⚡ Recommended Next-Best-Actions")
-        action_counts = df_customers["nba_recommended_action"].value_counts().reset_index()
-        action_counts.columns = ["Action", "Customers"]
-
-        fig_pie = px.pie(
-            action_counts,
-            names="Action",
-            values="Customers",
-            hole=0.55,
-            color_discrete_sequence=px.colors.qualitative.Safe,
-        )
-        fig_pie.update_layout(
-            template="plotly_dark",
-            height=360,
-            margin=dict(l=10, r=10, t=10, b=10),
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    # Value vs Risk Quadrant
-    st.subheader("🌐 Value-Risk Strategic Map")
-    st.caption("Visualizing customer positioning across 90-Day Expected CLV and Inactivity Hazard")
-
-    sample_viz = df_customers.sample(n=min(1200, len(df_customers)), random_state=42)
-    fig_scatter = px.scatter(
-        sample_viz,
-        x="inactivity_prob_90d",
-        y="clv_expected_90d",
-        color="action_segment",
-        size="frequency",
-        hover_data=["customer_id", "total_revenue", "p_alive", "nba_recommended_action"],
-        labels={"inactivity_prob_90d": "Inactivity Probability (90 Days)", "clv_expected_90d": "Expected 90-Day CLV (£)"},
-        color_discrete_sequence=px.colors.qualitative.Bold,
-    )
-    fig_scatter.update_layout(
-        template="plotly_dark",
-        height=450,
-        margin=dict(l=10, r=10, t=20, b=10),
-        yaxis=dict(range=[0, min(sample_viz['clv_expected_90d'].quantile(0.99) * 1.2, 5000)]),
-    )
-    st.plotly_chart(fig_scatter, use_container_width=True)
+horizon = 90
+clv_col = f"clv_expected_{horizon}d"
 
 
-# -----------------------------------------------------------------------------
-# PAGE 2: COHORT & RETENTION DYNAMICS
-# -----------------------------------------------------------------------------
-elif nav_choice == "👥 Cohort & Retention Dynamics":
-    st.markdown("""
-    <div class="main-header">
-        <h1>Acquisition Cohort & Retention Dynamics</h1>
-        <p>Tracking customer longevity, repeat cadence, and cumulative revenue decay across monthly acquisition cohorts</p>
-    </div>
-    """, unsafe_allow_html=True)
+def hero(title, subtitle):
+    st.markdown(f'<div class="hero"><h1>{title}</h1><p>{subtitle}</p></div>', unsafe_allow_html=True)
 
-    if df_retention is not None:
-        tab1, tab2, tab3 = st.tabs(["🔥 Retention Rate Matrix", "📈 Retention Decay Curves", "💰 Cohort Cumulative Revenue"])
 
+def money(x):
+    return f"£{x:,.2f}"
+
+
+if page == "Executive Overview":
+    hero("Executive Customer Intelligence", "A decision workspace for customer value, inactivity risk, cohort behaviour, and prescriptive actions.")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Customers", f"{len(customers):,}")
+    k2.metric("Clean transactions", f"{len(tx):,}")
+    k3.metric("90-day expected CLV", money(customers[clv_col].mean()))
+    k4.metric("High-risk customers", f"{(customers['inactivity_prob_90d'] >= 0.60).sum():,}")
+    k5.metric("Average P(Alive)", f"{customers['p_alive'].mean()*100:.1f}%")
+
+    left, right = st.columns([1.25, 1])
+    with left:
+        st.subheader("Action segment distribution")
+        seg = customers["action_segment"].value_counts().rename_axis("Segment").reset_index(name="Customers")
+        fig = px.bar(seg.sort_values("Customers"), x="Customers", y="Segment", orientation="h")
+        fig.update_layout(height=420, margin=dict(l=10,r=10,t=30,b=10), showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+    with right:
+        st.subheader("Value and inactivity risk")
+        sample = customers.sample(min(1800, len(customers)), random_state=42)
+        fig = px.scatter(sample, x="inactivity_prob_90d", y=clv_col, color="action_segment", hover_data=["customer_id","p_alive","frequency"], labels={"inactivity_prob_90d":"90-day inactivity probability",clv_col:"Expected 90-day CLV (£)"})
+        fig.update_layout(height=420, margin=dict(l=10,r=10,t=30,b=10), legend_title_text="Segment")
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Decision summary")
+    summary = customers.groupby("nba_recommended_action").agg(Customers=("customer_id","size"), Expected_Incremental_Value=("nba_expected_incremental_value","sum"), Contact_Cost=("nba_estimated_cost","sum")).reset_index().sort_values("Expected_Incremental_Value", ascending=False)
+    summary["Net Expected Value"] = summary["Expected_Incremental_Value"] - summary["Contact_Cost"]
+    st.dataframe(summary, use_container_width=True, hide_index=True)
+
+elif page == "Cohort Dynamics":
+    hero("Cohort and Retention Dynamics", "Explore acquisition cohorts, retention decay, and revenue progression over time.")
+    if retention is None:
+        st.info("Cohort retention artifacts are unavailable. Run the pipeline first.")
+    else:
+        tab1, tab2, tab3 = st.tabs(["Retention Matrix", "Retention Curves", "Revenue Progression"])
         with tab1:
-            st.subheader("Monthly Retention Matrix (%)")
-            st.caption("Percentage of acquired cohort customers active in subsequent months after acquisition (Month 0 = 100%)")
-
-            # Format to percentage display
-            ret_pct = (df_retention * 100.0).round(1)
-            # Limit to first 12 periods for neat display
-            cols_to_show = [c for c in ret_pct.columns[:13]]
-
-            fig_hm = px.imshow(
-                ret_pct[cols_to_show],
-                text_auto=True,
-                aspect="auto",
-                color_continuous_scale="Purples",
-                labels=dict(x="Months Since First Acquisition", y="Cohort Acquisition Month", color="Retention (%)"),
-            )
-            fig_hm.update_layout(
-                template="plotly_dark",
-                height=550,
-                margin=dict(l=10, r=10, t=30, b=10),
-            )
-            st.plotly_chart(fig_hm, use_container_width=True)
-
+            periods = st.slider("Periods to display", 3, min(12, retention.shape[1]), min(12, retention.shape[1]))
+            view = (retention.iloc[:, :periods] * 100).round(1)
+            fig = px.imshow(view, text_auto=True, aspect="auto", labels={"x":"Months since acquisition","y":"Acquisition cohort","color":"Retention (%)"})
+            fig.update_layout(height=560)
+            st.plotly_chart(fig, use_container_width=True)
         with tab2:
-            st.subheader("Cohort Retention Decay Curves")
-            st.caption("Comparing customer drop-off curves across acquisition cohorts")
-
-            # Plot top 6 largest cohorts
-            cohort_order = df_retention.index[:8]
-            fig_line = go.Figure()
-            for ch in cohort_order:
-                curve = df_retention.loc[ch].dropna() * 100.0
-                fig_line.add_trace(go.Scatter(
-                    x=curve.index.astype(int),
-                    y=curve.values,
-                    mode="lines+markers",
-                    name=ch,
-                ))
-
-            fig_line.update_layout(
-                template="plotly_dark",
-                height=450,
-                xaxis_title="Months Elapsed Since Acquisition",
-                yaxis_title="Retention Rate (%)",
-                margin=dict(l=10, r=10, t=20, b=10),
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-
+            selected = st.multiselect("Cohorts", list(retention.index.astype(str)), default=list(retention.index.astype(str))[:6])
+            fig = go.Figure()
+            for cohort in selected:
+                row = retention.loc[cohort].dropna() * 100
+                fig.add_trace(go.Scatter(x=list(range(len(row))), y=row, mode="lines+markers", name=str(cohort)))
+            fig.update_layout(height=460, xaxis_title="Months since acquisition", yaxis_title="Retention (%)")
+            st.plotly_chart(fig, use_container_width=True)
         with tab3:
-            st.subheader("Cumulative Revenue per Cohort")
-            if df_cohort_summary is not None:
-                fig_cum = px.line(
-                    df_cohort_summary[df_cohort_summary["cohort_period"] <= 12],
-                    x="cohort_period",
-                    y="cumulative_clv",
-                    color="cohort_month_str",
-                    labels={"cohort_period": "Cohort Period (Months)", "cumulative_clv": "Cumulative Spend / Customer (£)", "cohort_month_str": "Cohort"},
-                )
-                fig_cum.update_layout(
-                    template="plotly_dark",
-                    height=450,
-                    margin=dict(l=10, r=10, t=20, b=10),
-                )
-                st.plotly_chart(fig_cum, use_container_width=True)
+            if cohort_summary is not None and "cohort_period" in cohort_summary.columns:
+                max_period = st.slider("Maximum cohort period", 1, int(cohort_summary["cohort_period"].max()), min(12, int(cohort_summary["cohort_period"].max())))
+                view = cohort_summary[cohort_summary["cohort_period"] <= max_period]
+                fig = px.line(view, x="cohort_period", y="cumulative_clv", color="cohort_month_str", labels={"cohort_period":"Cohort month","cumulative_clv":"Cumulative revenue per customer (£)"})
+                fig.update_layout(height=460)
+                st.plotly_chart(fig, use_container_width=True)
 
+elif page == "Customer Action Studio":
+    hero("Customer 360 | Action Workspace", "A CRM-style customer record for reviewing behaviour, model predictions, commercial value, and the next recommended action.")
 
-# -----------------------------------------------------------------------------
-# PAGE 3: CUSTOMER 360 EXPLORER
-# -----------------------------------------------------------------------------
-elif nav_choice == "🔍 Customer 360 Explorer":
+    # CRM shell styling. The analytical models below are unchanged; this section only
+    # changes how a single customer is selected, scored, and presented.
     st.markdown("""
-    <div class="main-header">
-        <h1>Individual Customer 360 Explorer</h1>
-        <p>Audit individual customer transaction trajectories, probabilistic life expectancy, and Next-Best-Action prescriptive briefs</p>
+    <style>
+      .crm-header {background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+      .crm-name {font-size:1.35rem;font-weight:700;color:#111827;margin:0}
+      .crm-meta {color:#6b7280;font-size:.86rem;margin-top:4px}
+      .crm-chip {display:inline-block;padding:4px 9px;border-radius:999px;background:#f3f4f6;color:#374151;font-size:.76rem;font-weight:600;margin-right:5px}
+      .crm-card {background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;height:100%;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+      .crm-label {font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:700}
+      .crm-value {font-size:1.25rem;font-weight:700;color:#111827;margin-top:3px}
+      .crm-sub {font-size:.8rem;color:#6b7280;margin-top:2px}
+      .crm-action {background:#f8fafc;border:1px solid #dbe3ef;border-radius:12px;padding:16px 18px}
+      .crm-timeline {border-left:2px solid #e5e7eb;padding-left:16px;margin-left:5px}
+      .crm-event {margin-bottom:13px}
+      .crm-event-date {font-size:.75rem;color:#6b7280}
+      .crm-event-main {font-weight:600;color:#1f2937}
+    </style>
+    """, unsafe_allow_html=True)
+
+    model_dir = BASE / "models"
+    required_models = [model_dir / "bg_nbd_model.pkl", model_dir / "gamma_gamma_model.pkl", model_dir / "survival_model.pkl"]
+    missing_models = [str(x.name) for x in required_models if not x.exists()]
+    if missing_models:
+        st.warning("Fitted model artifacts are missing: " + ", ".join(missing_models))
+        st.code("python scripts/run_pipeline.py", language="bash")
+        st.stop()
+
+    @st.cache_resource(show_spinner=False)
+    def load_scoring_models():
+        from src.config.config import load_config
+        from src.models.purchase_model import PurchaseModelBGNBD
+        from src.models.monetary_model import MonetaryModelGammaGamma
+        from src.models.inactivity_model import InactivitySurvivalModel
+        from src.clv.clv_calculator import ProbabilisticCLVCalculator
+        from src.segmentation.segmenter import ActionSegmenter
+        from src.nba.nba_engine import NBAEngine
+        cfg = load_config()
+        bgf = PurchaseModelBGNBD(cfg); bgf.load_model()
+        ggf = MonetaryModelGammaGamma(cfg); ggf.load_model()
+        survival = InactivitySurvivalModel(cfg); survival.load_model()
+        return cfg, bgf, ggf, survival, ProbabilisticCLVCalculator(cfg), ActionSegmenter(cfg), NBAEngine(cfg)
+
+    cfg, bgf, ggf, survival, clv_calc, segmenter, nba_engine = load_scoring_models()
+
+    # Persistent customer selection makes the page feel like a CRM record rather than a form.
+    customer_ids = customers.customer_id.astype(str).tolist()
+    default_id = st.session_state.get("crm_customer_id", customer_ids[0])
+    if default_id not in customer_ids:
+        default_id = customer_ids[0]
+    s1, s2 = st.columns([2.5, 1])
+    with s1:
+        source_id = st.selectbox("Find customer", customer_ids, index=customer_ids.index(default_id), key="crm_customer_selector")
+    st.session_state["crm_customer_id"] = source_id
+    base = customers[customers.customer_id.astype(str) == source_id].iloc[0]
+
+    customer_tx = tx[tx.customer_id.astype(str) == source_id].copy() if "customer_id" in tx.columns else pd.DataFrame()
+    customer_tx = customer_tx.sort_values("transaction_date", ascending=False) if "transaction_date" in customer_tx.columns else customer_tx
+    country = str(base.get("country", "Unknown"))
+    segment = str(base.get("action_segment", "Unassigned"))
+    action = str(base.get("nba_recommended_action", "Review"))
+    channel = str(base.get("nba_channel", "-") )
+    risk = float(base.get("inactivity_prob_90d", 0.0))
+    risk_label = "High" if risk >= .60 else ("Medium" if risk >= .30 else "Low")
+    first_date = pd.to_datetime(base.get("first_purchase_date"), errors="coerce")
+    last_date = pd.to_datetime(base.get("last_purchase_date"), errors="coerce")
+    joined = first_date.strftime("%d %b %Y") if pd.notna(first_date) else "—"
+    last_seen = last_date.strftime("%d %b %Y") if pd.notna(last_date) else "—"
+
+    st.markdown(f"""
+    <div class="crm-header">
+      <div class="crm-name">Customer {source_id}</div>
+      <div class="crm-meta">{country} &nbsp; · &nbsp; Customer since {joined} &nbsp; · &nbsp; Last purchase {last_seen}</div>
+      <div style="margin-top:10px"><span class="crm-chip">{segment}</span><span class="crm-chip">{risk_label} inactivity risk</span><span class="crm-chip">{action}</span></div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Search and Filter Controls
-    fcol1, fcol2, fcol3 = st.columns([3, 3, 3])
-    with fcol1:
-        seg_filter = st.selectbox(
-            "Filter by Action Segment",
-            ["All"] + sorted(df_customers["action_segment"].unique().tolist()),
-        )
-    with fcol2:
-        country_filter = st.selectbox(
-            "Filter by Country",
-            ["All"] + sorted(df_customers["country"].dropna().unique().tolist()[:20]),
-        )
-    with fcol3:
-        search_cust = st.text_input("Search Customer ID", placeholder="e.g. 12346")
+    tab_overview, tab_score, tab_history = st.tabs(["Overview", "Model Score", "Purchase History"])
 
-    # Filtered dataframe
-    df_filtered = df_customers.copy()
-    if seg_filter != "All":
-        df_filtered = df_filtered[df_filtered["action_segment"] == seg_filter]
-    if country_filter != "All":
-        df_filtered = df_filtered[df_filtered["country"] == country_filter]
-    if search_cust.strip():
-        df_filtered = df_filtered[df_filtered["customer_id"].astype(str).str.contains(search_cust.strip())]
+    with tab_overview:
+        m1,m2,m3,m4 = st.columns(4)
+        m1.markdown(f'<div class="crm-card"><div class="crm-label">90-day CLV</div><div class="crm-value">{money(base[clv_col])}</div><div class="crm-sub">Expected customer value</div></div>', unsafe_allow_html=True)
+        m2.markdown(f'<div class="crm-card"><div class="crm-label">P(Alive)</div><div class="crm-value">{base["p_alive"]*100:.1f}%</div><div class="crm-sub">Purchase relationship active</div></div>', unsafe_allow_html=True)
+        m3.markdown(f'<div class="crm-card"><div class="crm-label">Inactivity risk</div><div class="crm-value">{risk*100:.1f}%</div><div class="crm-sub">90-day probability</div></div>', unsafe_allow_html=True)
+        m4.markdown(f'<div class="crm-card"><div class="crm-label">Expected action value</div><div class="crm-value">{money(base["nba_expected_incremental_value"])}</div><div class="crm-sub">Before contact cost</div></div>', unsafe_allow_html=True)
 
-    st.write(f"Showing **{len(df_filtered):,}** matching customers.")
+        left, right = st.columns([1.15, .85])
+        with left:
+            st.subheader("Customer profile")
+            profile = pd.DataFrame({
+                "Attribute": ["Customer ID", "Country", "Repeat purchases", "Total revenue", "Average order value", "Days since last purchase", "Customer tenure"],
+                "Value": [source_id, country, f'{int(base["frequency"]):,}', money(base["total_revenue"]), money(base["average_order_value"]), f'{base["days_since_last_purchase"]:.0f} days', f'{base["customer_tenure_days"]:.0f} days']
+            })
+            st.dataframe(profile, use_container_width=True, hide_index=True)
+        with right:
+            st.subheader("Recommended action")
+            st.markdown(f'<div class="crm-action"><div class="crm-label">Next-best-action</div><div style="font-size:1.15rem;font-weight:700;margin:5px 0 7px">{action}</div><div class="crm-sub">Preferred channel: {channel}</div><div style="margin-top:10px;color:#374151;font-size:.9rem">{base.get("nba_reason", "No explanation available.")}</div></div>', unsafe_allow_html=True)
 
-    if len(df_filtered) == 0:
-        st.warning("No customers match the current criteria.")
-    else:
-        # Select customer
-        selected_cust_id = st.selectbox(
-            "Select Customer to Inspect:",
-            df_filtered["customer_id"].tolist()[:50],
-        )
-
-        cust_row = df_customers[df_customers["customer_id"] == selected_cust_id].iloc[0]
-
-        # Customer Header Profile
-        st.markdown("---")
-        pcol1, pcol2, pcol3, pcol4 = st.columns([3, 2, 2, 3])
-        with pcol1:
-            st.markdown(f"### Customer ID: `{cust_row['customer_id']}`")
-            st.markdown(f"**Country**: {cust_row['country']} | **Cohort**: {cust_row['cohort_month']}")
-            st.markdown(f"**Action Segment**: `{cust_row['action_segment']}`")
-        with pcol2:
-            st.metric("P(Alive)", f"{cust_row['p_alive']*100:.1f}%")
-            st.metric("Inactivity Hazard (90d)", f"{cust_row['inactivity_prob_90d']*100:.1f}%")
-        with pcol3:
-            st.metric("Expected 90d CLV", f"£{cust_row['clv_expected_90d']:.2f}")
-            st.metric("80% Value Interval", f"£{cust_row['clv_lower_80pct']:.1f} - £{cust_row['clv_upper_80pct']:.1f}")
-        with pcol4:
-            st.markdown(f"""
-            <div class="metric-card" style="border-left: 4px solid #6366f1;">
-                <div class="metric-title">Next-Best-Action Brief</div>
-                <div style="font-size: 18px; font-weight: 800; color: #a5b4fc; margin-top: 4px;">{cust_row['nba_recommended_action']}</div>
-                <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">Channel: <b>{cust_row['nba_channel'].upper()}</b></div>
-                <div style="font-size: 11px; color: #94a3b8; margin-top: 6px;">{cust_row['nba_offer']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Historical transactions of this customer
-        st.subheader("📜 Historical Transaction Basket Log")
-        cust_tx = df_clean_tx[df_clean_tx["customer_id"] == str(selected_cust_id)].sort_values(
-            "transaction_date", ascending=False
-        )
-
-        st.dataframe(
-            cust_tx[["invoice_id", "transaction_date", "stock_code", "description", "quantity", "unit_price", "revenue"]].head(25),
-            use_container_width=True,
-        )
-
-
-# -----------------------------------------------------------------------------
-# PAGE 4: ACTION SEGMENTS
-# -----------------------------------------------------------------------------
-elif nav_choice == "🎯 Action Segments":
-    st.markdown("""
-    <div class="main-header">
-        <h1>Action-Oriented Customer Segments</h1>
-        <p>Operational customer clustering informed by statistical longevity, repeat velocity, and expected customer lifetime value</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Segment Aggregation Table
-    seg_summary = df_customers.groupby("action_segment").agg(
-        customers=("customer_id", "count"),
-        avg_revenue=("total_revenue", "mean"),
-        total_segment_rev=("total_revenue", "sum"),
-        avg_clv_90d=("clv_expected_90d", "mean"),
-        avg_p_alive=("p_alive", "mean"),
-        avg_inactivity_hazard=("inactivity_prob_90d", "mean"),
-    ).reset_index()
-
-    seg_summary["pct_customers"] = (seg_summary["customers"] / len(df_customers) * 100).round(1)
-    seg_summary["avg_revenue"] = seg_summary["avg_revenue"].round(2)
-    seg_summary["avg_clv_90d"] = seg_summary["avg_clv_90d"].round(2)
-    seg_summary["avg_p_alive"] = (seg_summary["avg_p_alive"] * 100).round(1)
-    seg_summary["avg_inactivity_hazard"] = (seg_summary["avg_inactivity_hazard"] * 100).round(1)
-
-    st.dataframe(
-        seg_summary.rename(columns={
-            "action_segment": "Segment",
-            "customers": "Customer Count",
-            "pct_customers": "% of Base",
-            "avg_revenue": "Avg Past Spend (£)",
-            "total_segment_rev": "Total Revenue (£)",
-            "avg_clv_90d": "Expected 90d CLV (£)",
-            "avg_p_alive": "Avg P(Alive) %",
-            "avg_inactivity_hazard": "Avg Inactivity Risk %",
-        }),
-        use_container_width=True,
-    )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Distribution Plots
-    sc1, sc2 = st.columns(2)
-    with sc1:
-        st.subheader("Revenue Contribution by Segment")
-        fig_rev = px.pie(
-            seg_summary,
-            names="action_segment",
-            values="total_segment_rev",
-            color_discrete_sequence=px.colors.qualitative.Pastel,
-            hole=0.45,
-        )
-        fig_rev.update_layout(template="plotly_dark", height=380)
-        st.plotly_chart(fig_rev, use_container_width=True)
-
-    with sc2:
-        st.subheader("Expected CLV Boxplot by Segment")
-        fig_box = px.box(
-            df_customers,
-            x="action_segment",
-            y="clv_expected_90d",
-            color="action_segment",
-            points=False,
-        )
-        fig_box.update_layout(
-            template="plotly_dark",
-            height=380,
-            showlegend=False,
-            yaxis=dict(range=[0, df_customers['clv_expected_90d'].quantile(0.98)]),
-            xaxis_title="",
-            yaxis_title="Expected 90d CLV (£)",
-        )
-        st.plotly_chart(fig_box, use_container_width=True)
-
-
-# -----------------------------------------------------------------------------
-# PAGE 5: NEXT-BEST-ACTION ENGINE
-# -----------------------------------------------------------------------------
-elif nav_choice == "⚡ Next-Best-Action Engine":
-    st.markdown("""
-    <div class="main-header">
-        <h1>Next-Best-Action (NBA) Prescriptive Engine</h1>
-        <p>Operational CRM orchestration: Translating lifetime valuations and churn risk into prioritized contact strategies</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Action Summary Tiles
-    acts = df_customers["nba_recommended_action"].value_counts()
-    ncol1, ncol2, ncol3, ncol4 = st.columns(4)
-    with ncol1:
-        st.metric("Total Retention Touches", f"{acts.get('RETENTION', 0) + acts.get('WIN_BACK', 0):,}")
-    with ncol2:
-        st.metric("Upsell & Cross-Sell Opportunities", f"{acts.get('UPSELL', 0) + acts.get('CROSS_SELL', 0):,}")
-    with ncol3:
-        st.metric("Loyalty & VIP Touches", f"{acts.get('LOYALTY_REWARD', 0):,}")
-    with ncol4:
-        st.metric("Suppressed / No Action (Budget Saved)", f"{acts.get('NO_ACTION', 0):,}")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # High Priority Action Queue
-    st.subheader("🚨 Priority Action Queue (Top Ranked Contacts)")
-    st.caption("Sorted by highest expected incremental yield and urgency")
-
-    action_filter = st.selectbox(
-        "Filter Action Queue",
-        ["All High Priority"] + sorted(df_customers["nba_recommended_action"].unique().tolist()),
-    )
-
-    queue_df = df_customers.copy()
-    if action_filter == "All High Priority":
-        queue_df = queue_df[queue_df["nba_priority"] == "HIGH"]
-    else:
-        queue_df = queue_df[queue_df["nba_recommended_action"] == action_filter]
-
-    queue_df = queue_df.sort_values("nba_expected_incremental_value", ascending=False)
-
-    st.dataframe(
-        queue_df[[
-            "customer_id", "action_segment", "nba_recommended_action", "nba_priority",
-            "nba_channel", "clv_expected_90d", "nba_expected_incremental_value",
-            "nba_estimated_cost", "nba_offer", "nba_reason"
-        ]].head(50).rename(columns={
-            "customer_id": "Customer ID",
-            "action_segment": "Segment",
-            "nba_recommended_action": "Action",
-            "nba_priority": "Priority",
-            "nba_channel": "Channel",
-            "clv_expected_90d": "CLV 90d (£)",
-            "nba_expected_incremental_value": "Expected Yield (£)",
-            "nba_estimated_cost": "Contact Cost (£)",
-            "nba_offer": "Incentive / Offer",
-            "nba_reason": "Decision Rationale",
-        }),
-        use_container_width=True,
-    )
-
-
-# -----------------------------------------------------------------------------
-# PAGE 6: CAMPAIGN SCENARIO SIMULATOR
-# -----------------------------------------------------------------------------
-elif nav_choice == "🎲 Campaign Simulator":
-    st.markdown("""
-    <div class="main-header">
-        <h1>Interactive Marketing Campaign Simulator</h1>
-        <p>What-if scenario planning: Simulate marketing budget allocations, response rates, discount mechanics, and expected ROI</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.warning("⚠️ **ACADEMIC INTEGRITY NOTICE**: All campaign response probabilities and uplifts simulated on this page are generated from a **synthetic simulation layer**. The UCI Online Retail II dataset is purely transactional; simulation data is segregated to demonstrate decision science workflows.")
-
-    sim_col1, sim_col2 = st.columns([4, 6])
-
-    with sim_col1:
-        st.subheader("⚙️ Scenario Parameters")
-        target_seg = st.selectbox(
-            "Target Segment",
-            df_customers["action_segment"].unique().tolist(),
-            index=0,
-        )
-        avail = int((df_customers["action_segment"] == target_seg).sum())
-        st.info(f"Available population in `{target_seg}`: **{avail:,} customers**")
-
-        camp_action = st.selectbox("Campaign Objective / Action", ["RETENTION", "UPSELL", "LOYALTY_REWARD", "REACTIVATION", "WIN_BACK"])
-        channel = st.selectbox("Contact Channel", ["email", "sms", "direct_mail", "push"])
-        camp_size = st.slider("Targeted Customers Count", min_value=10, max_value=max(10, avail), value=min(500, avail), step=10)
-        resp_rate = st.slider("Assumed Response Rate (%)", min_value=1.0, max_value=40.0, value=15.0, step=0.5) / 100.0
-        inc_aov = st.slider("Expected Incremental Spend / Order (£)", min_value=10.0, max_value=200.0, value=65.0, step=5.0)
-        disc_pct = st.slider("Voucher / Discount Level (%)", min_value=0.0, max_value=30.0, value=12.0, step=1.0) / 100.0
-        creative_cost = st.number_input("Fixed Creative / Setup Cost (£)", min_value=0.0, value=150.0, step=25.0)
-
-    with sim_col2:
-        st.subheader("📈 Projected Financial Return")
-        from src.simulation.campaign_simulator import ScenarioSimulator
-        simulator = ScenarioSimulator()
-        sim_res = simulator.simulate_campaign(
-            segment_df=df_customers,
-            target_segment=target_seg,
-            action=camp_action,
-            campaign_size=camp_size,
-            channel=channel,
-            base_response_rate=resp_rate,
-            avg_incremental_aov=inc_aov,
-            discount_pct=disc_pct,
-            fixed_creative_cost=creative_cost,
-        )
-
-        r1, r2, r3 = st.columns(3)
-        with r1:
-            st.metric("Expected Responders", f"{sim_res['expected_responders']:,}", f"80% Range: {sim_res['responders_80pct_range'][0]}-{sim_res['responders_80pct_range'][1]}")
-        with r2:
-            st.metric("Total Campaign Cost", f"£{sim_res['total_campaign_cost_gbp']:,.2f}")
-        with r3:
-            roi_color = "normal" if sim_res['roi_percent'] > 0 else "inverse"
-            st.metric("Projected ROI", f"{sim_res['roi_percent']:.1f}%")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.metric(
-            "Expected Net Profit (£)",
-            f"£{sim_res['expected_net_value_gbp']:,.2f}",
-            f"80% CI: [£{sim_res['net_value_80pct_range'][0]:,.2f}, £{sim_res['net_value_80pct_range'][1]:,.2f}]",
-        )
-
-        # Cost Breakdown Waterfall
-        breakdown_df = pd.DataFrame({
-            "Cost Component": ["Fixed Creative", "Channel Outreach", "Discount Voucher", "Expected Gross Revenue"],
-            "Amount (£)": [
-                sim_res["fixed_cost_gbp"],
-                sim_res["channel_cost_gbp"],
-                sim_res["discount_cost_gbp"],
-                sim_res["gross_incremental_revenue_gbp"],
-            ],
-            "Type": ["Cost", "Cost", "Cost", "Revenue"],
-        })
-        fig_bar = px.bar(
-            breakdown_df,
-            x="Cost Component",
-            y="Amount (£)",
-            color="Type",
-            text="Amount (£)",
-            color_discrete_map={"Cost": "#ef4444", "Revenue": "#10b981"},
-        )
-        fig_bar.update_layout(template="plotly_dark", height=320, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-
-# -----------------------------------------------------------------------------
-# PAGE 7: MODEL MONITORING & HEALTH
-# -----------------------------------------------------------------------------
-elif nav_choice == "🛡️ Model Monitoring & Health":
-    st.markdown("""
-    <div class="main-header">
-        <h1>Model Evaluation, Calibration & Production Drift Monitoring</h1>
-        <p>Quantitative holdout benchmarking, interval coverage verification, calibration reliability, and Population Stability Index (PSI)</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    mtab1, mtab2, mtab3 = st.tabs(["📊 Holdout Benchmarks", "🎯 Calibration & Interval Coverage", "📡 Drift Monitoring (PSI)"])
-
-    with mtab1:
-        st.subheader("Holdout Revenue Error: Model Benchmarking")
-        st.caption("Comparing Probabilistic CLV vs Baseline A (Historical Extrapolation) vs Baseline B (RFM) on ground truth holdout spend")
-
-        if eval_data and "benchmark_results" in eval_data:
-            bench_df = pd.DataFrame(eval_data["benchmark_results"])
-            st.dataframe(bench_df, use_container_width=True)
-
-            # Bar plot of Spearman Rank Correlation
-            fig_corr = px.bar(
-                bench_df,
-                x="Model",
-                y="Spearman Rank Corr",
-                color="Model",
-                text="Spearman Rank Corr",
-                title="Spearman Rank Correlation with Future Spend (Higher is Better)",
-            )
-            fig_corr.update_layout(template="plotly_dark", height=320, showlegend=False)
-            st.plotly_chart(fig_corr, use_container_width=True)
+        st.subheader("Recent activity")
+        if customer_tx.empty:
+            st.info("No transaction history is available for this customer.")
         else:
-            st.info("Evaluation benchmark data loading...")
+            events = customer_tx.head(6)
+            timeline = '<div class="crm-timeline">'
+            for _, r in events.iterrows():
+                date = pd.to_datetime(r.get("transaction_date"), errors="coerce")
+                date_text = date.strftime("%d %b %Y") if pd.notna(date) else "Unknown date"
+                amount = r.get("total_price", r.get("price", r.get("monetary_value", 0)))
+                try: amount_text = money(float(amount))
+                except Exception: amount_text = "—"
+                desc = str(r.get("description", "Purchase"))[:90]
+                timeline += f'<div class="crm-event"><div class="crm-event-date">{date_text}</div><div class="crm-event-main">Purchase · {amount_text}</div><div class="crm-sub">{desc}</div></div>'
+            timeline += '</div>'
+            st.markdown(timeline, unsafe_allow_html=True)
 
-    with mtab2:
-        c_left, c_right = st.columns(2)
-        with c_left:
-            st.subheader("80% CLV Prediction Interval Coverage")
-            if eval_data and "interval_coverage" in eval_data:
-                cov = eval_data["interval_coverage"]
-                st.metric("Empirical Coverage Rate", f"{cov['empirical_coverage_pct']}%", f"Nominal Target: {cov['nominal_target']*100:.0f}%")
-                st.info(f"**Audit Status**: {cov['status']}")
-                st.write(f"- Outcomes Below Lower Bound: **{cov['below_lower_bound_pct']}%**")
-                st.write(f"- Outcomes Above Upper Bound: **{cov['above_upper_bound_pct']}%**")
+    with tab_score:
+        st.caption("Edit observed behaviour to run a temporary what-if score. The source customer record is not modified.")
+        with st.form("single_customer_form"):
+            a,b,c,d = st.columns(4)
+            frequency = a.number_input("Repeat purchases", min_value=0, max_value=500, value=int(base["frequency"]), step=1)
+            recency = b.number_input("Recency since first purchase (days)", min_value=0.0, max_value=5000.0, value=float(base["recency_days"]), step=1.0)
+            tenure = c.number_input("Customer tenure (days)", min_value=1.0, max_value=5000.0, value=max(1.0,float(base["customer_tenure_days"])), step=1.0)
+            days_since = d.number_input("Days since last purchase", min_value=0.0, max_value=5000.0, value=float(base["days_since_last_purchase"]), step=1.0)
+            e,f,g = st.columns(3)
+            monetary = e.number_input("Average monetary value (£)", min_value=0.01, max_value=50000.0, value=max(0.01,float(base["monetary_value"])), step=1.0)
+            aov = f.number_input("Average order value (£)", min_value=0.01, max_value=50000.0, value=max(0.01,float(base["average_order_value"])), step=1.0)
+            revenue = g.number_input("Total historical revenue (£)", min_value=0.01, max_value=1000000.0, value=max(0.01,float(base["total_revenue"])), step=10.0)
+            submitted = st.form_submit_button("Score Customer", type="primary", use_container_width=True)
 
-        with c_right:
-            st.subheader("Inactivity Calibration Reliability")
-            if eval_data and "calibration" in eval_data:
-                calib = eval_data["calibration"]
-                st.metric("Brier Score", f"{calib['brier_score']:.4f}", calib["brier_interpretation"])
-                calib_bins_df = pd.DataFrame(calib["calibration_bins"])
-                st.dataframe(calib_bins_df, use_container_width=True)
+        if submitted:
+            candidate = base.to_frame().T.copy()
+            candidate["frequency"] = int(frequency)
+            candidate["recency_days"] = float(recency)
+            candidate["customer_tenure_days"] = float(max(tenure, recency, days_since + 1.0))
+            candidate["days_since_last_purchase"] = float(days_since)
+            candidate["monetary_value"] = float(monetary)
+            candidate["average_order_value"] = float(aov)
+            candidate["total_revenue"] = float(revenue)
+            candidate["customer_id"] = source_id
+            candidate["p_alive"] = bgf.predict_p_alive(candidate).values
+            candidate["exp_avg_monetary"] = ggf.predict_expected_average_spend(candidate).values
+            inactivity = survival.predict_inactivity_probabilities(candidate)
+            candidate = pd.concat([candidate, inactivity], axis=1)
+            candidate = clv_calc.compute_clv(candidate, bgf, ggf, n_simulation_samples=500)
+            population = customers.copy()
+            replace_idx = population.index[population.customer_id.astype(str) == source_id]
+            if len(replace_idx):
+                for col in candidate.columns:
+                    if col in population.columns: population.loc[replace_idx[0], col] = candidate.iloc[0][col]
+            else:
+                population = pd.concat([population, candidate], ignore_index=True)
+            population = segmenter.segment_customers(population)
+            scored = nba_engine.generate_recommendations(population[population.customer_id.astype(str) == source_id].copy())
+            row = scored.iloc[0]
+            st.session_state["crm_scored_row"] = row.to_dict()
+            st.success("Customer score refreshed.")
 
-        st.subheader("Sparse-History Sensitivity Analysis")
-        if eval_data and "sparse_history_sensitivity" in eval_data:
-            st.dataframe(pd.DataFrame(eval_data["sparse_history_sensitivity"]), use_container_width=True)
+        row_data = st.session_state.get("crm_scored_row")
+        if row_data:
+            row = pd.Series(row_data)
+            k1,k2,k3,k4 = st.columns(4)
+            k1.metric("Expected CLV (90d)", money(row[clv_col]))
+            k2.metric("P(Alive)", f"{row['p_alive']*100:.1f}%")
+            k3.metric("Inactivity risk", f"{row['inactivity_prob_90d']*100:.1f}%")
+            k4.metric("Expected purchases", f"{row[f'exp_purchases_{cfg.clv.default_horizon_days}d']:.2f}")
+            l,r = st.columns([1.1,.9])
+            with l:
+                st.subheader("Model output")
+                st.dataframe(pd.DataFrame({"Metric":["P(Alive)","Expected purchases (90d)","Expected average spend","90-day CLV","CLV lower interval","CLV upper interval","90-day inactivity probability","Risk tier"],"Value":[f"{row['p_alive']:.4f}",f"{row[f'exp_purchases_{cfg.clv.default_horizon_days}d']:.3f}",money(row['exp_avg_monetary']),money(row[clv_col]),money(row['clv_lower_80pct']),money(row['clv_upper_80pct']),f"{row['inactivity_prob_90d']:.2%}",str(row['inactivity_risk_tier'])]}), use_container_width=True, hide_index=True)
+            with r:
+                st.subheader("Decision")
+                st.markdown(f'<div class="crm-action"><div class="crm-label">Action segment</div><div class="crm-value">{row["action_segment"]}</div><div style="margin-top:12px" class="crm-label">Next-best-action</div><div style="font-weight:700;margin-top:3px">{row["nba_recommended_action"]}</div><div class="crm-sub">Channel: {row["nba_channel"]}</div><div style="margin-top:10px">Expected incremental value: <b>{money(row["nba_expected_incremental_value"])}</b></div><div class="crm-sub">{row["nba_reason"]}</div></div>', unsafe_allow_html=True)
+            st.download_button("Export customer score", scored.to_csv(index=False).encode("utf-8"), f"customer_{source_id}_score.csv", "text/csv")
+        else:
+            st.info("Run Score Customer to generate a fresh model score for this customer.")
 
-    with mtab3:
-        st.subheader("Production Drift Monitoring (Population Stability Index)")
-        if drift_data:
-            overall = drift_data.get("overall_health", {})
-            st.metric("Maximum PSI Across Features", f"{overall.get('max_psi', 0.0):.4f}", f"Status: {overall.get('overall_status', 'HEALTHY')}")
+    with tab_history:
+        st.subheader("Purchase history")
+        if customer_tx.empty:
+            st.info("No purchase records available.")
+        else:
+            display_cols = [c for c in ["transaction_date","invoice_no","description","quantity","unit_price","total_price"] if c in customer_tx.columns]
+            st.dataframe(customer_tx[display_cols].head(100), use_container_width=True, hide_index=True)
 
-            # PSI Table
-            psi_rows = []
-            for k, v in drift_data.items():
-                if isinstance(v, dict) and "psi_value" in v:
-                    psi_rows.append({
-                        "Metric / Feature": k.replace("psi_", ""),
-                        "PSI Value": v["psi_value"],
-                        "Status": v["status"],
-                    })
-            if psi_rows:
-                st.dataframe(pd.DataFrame(psi_rows), use_container_width=True)
+elif page == "Customer 360":
+    hero("Customer 360 Explorer", "Inspect one customer’s observed behaviour, probabilistic value, inactivity risk, and recommended action.")
+    c1, c2, c3 = st.columns(3)
+    segment_filter = c1.selectbox("Segment", ["All"] + sorted(customers.action_segment.dropna().unique().tolist()))
+    country_filter = c2.selectbox("Country", ["All"] + sorted(customers.country.dropna().astype(str).unique().tolist()))
+    search = c3.text_input("Customer ID contains", "")
+    filtered = customers.copy()
+    if segment_filter != "All": filtered = filtered[filtered.action_segment == segment_filter]
+    if country_filter != "All": filtered = filtered[filtered.country.astype(str) == country_filter]
+    if search.strip(): filtered = filtered[filtered.customer_id.astype(str).str.contains(search.strip(), case=False, na=False)]
+    if filtered.empty:
+        st.warning("No customers match the selected filters.")
+    else:
+        ids = filtered.customer_id.astype(str).tolist()
+        selected_id = st.selectbox("Customer", ids)
+        row = customers[customers.customer_id.astype(str) == selected_id].iloc[0]
+        a,b,c,e = st.columns(4)
+        a.metric("Expected CLV (90d)", money(row[clv_col]))
+        b.metric("P(Alive)", f"{row['p_alive']*100:.1f}%")
+        c.metric("Inactivity risk (90d)", f"{row['inactivity_prob_90d']*100:.1f}%")
+        e.metric("Uncertainty spread", f"{row['clv_uncertainty_spread']:.2f}")
+        st.markdown(f"<div class='decision'><b>Recommended action:</b> {row['nba_recommended_action']} &nbsp; | &nbsp; <b>Channel:</b> {row['nba_channel']}<br><span class='small'>{row['nba_reason']}</span></div>", unsafe_allow_html=True)
+        st.divider()
+        left, right = st.columns([1,1])
+        with left:
+            st.subheader("Customer profile")
+            profile = pd.DataFrame({"Metric":["Country","Cohort","Tenure (days)","Days since purchase","Repeat purchases","Total revenue","Average order value","Segment"],"Value":[row.get("country",""),row.get("cohort_month",""),round(row["customer_tenure_days"],1),round(row["days_since_last_purchase"],1),int(row["frequency"]),money(row["total_revenue"]),money(row["average_order_value"]),row["action_segment"]]})
+            st.dataframe(profile, use_container_width=True, hide_index=True)
+        with right:
+            cust_tx = tx[tx.customer_id.astype(str) == selected_id].sort_values("transaction_date", ascending=False)
+            st.subheader("Recent transactions")
+            cols = [c for c in ["invoice_id","transaction_date","stock_code","description","quantity","unit_price","revenue"] if c in cust_tx.columns]
+            st.dataframe(cust_tx[cols].head(30), use_container_width=True, hide_index=True)
 
-            if "segment_population_drift" in drift_data:
-                st.subheader("Segment Population Shifts Across Time")
-                st.dataframe(pd.DataFrame(drift_data["segment_population_drift"]), use_container_width=True)
+elif page == "Action Segments":
+    hero("Action Segments", "Compare operational segments using transparent, model-informed rules rather than opaque clustering labels.")
+    seg = customers.groupby("action_segment").agg(Customers=("customer_id","size"), Mean_CLV=(clv_col,"mean"), Mean_Risk=("inactivity_prob_90d","mean"), Mean_PAlive=("p_alive","mean"), Revenue=("total_revenue","sum")).reset_index()
+    st.dataframe(seg.sort_values("Customers", ascending=False), use_container_width=True, hide_index=True)
+    st.subheader("Segment value versus risk")
+    fig = px.scatter(seg, x="Mean_Risk", y="Mean_CLV", size="Customers", text="action_segment", labels={"Mean_Risk":"Mean 90-day inactivity probability","Mean_CLV":"Mean 90-day CLV (£)"})
+    fig.update_traces(textposition="top center")
+    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Customer-level segment audit")
+    selected = st.selectbox("Segment to inspect", sorted(customers.action_segment.unique()))
+    view = customers[customers.action_segment == selected].sort_values(clv_col, ascending=False)
+    st.dataframe(view[["customer_id","action_segment",clv_col,"p_alive","inactivity_prob_90d","nba_recommended_action","nba_channel"]].head(100), use_container_width=True, hide_index=True)
+
+elif page == "Next-Best-Action":
+    hero("Next-Best-Action Workbench", "Filter the decision queue by urgency, action, segment, and expected incremental value.")
+    c1,c2,c3 = st.columns(3)
+    priority = c1.multiselect("Priority", sorted(customers.nba_priority.dropna().unique()), default=sorted(customers.nba_priority.dropna().unique()))
+    action = c2.multiselect("Action", sorted(customers.nba_recommended_action.dropna().unique()), default=sorted(customers.nba_recommended_action.dropna().unique()))
+    top_n = c3.slider("Rows", 10, 200, 50, 10)
+    queue = customers[customers.nba_priority.isin(priority) & customers.nba_recommended_action.isin(action)].copy()
+    queue = queue.sort_values(["nba_priority","nba_expected_incremental_value"], ascending=[True,False]).head(top_n)
+    st.metric("Customers in queue", f"{len(queue):,}")
+    cols = ["customer_id","action_segment","nba_recommended_action","nba_priority","nba_channel",clv_col,"nba_expected_incremental_value","nba_estimated_cost","nba_offer","nba_reason"]
+    st.dataframe(queue[cols], use_container_width=True, hide_index=True)
+    st.download_button("Export current action queue", queue[cols].to_csv(index=False).encode("utf-8"), "nba_action_queue.csv", "text/csv")
+
+elif page == "Campaign Simulator":
+    hero("Campaign Scenario Simulator", "Run transparent what-if calculations. Response rates and uplift assumptions are synthetic planning inputs, not observed campaign outcomes.")
+    from src.simulation.campaign_simulator import ScenarioSimulator
+    c1,c2 = st.columns([1,1.4])
+    segments = sorted(customers.action_segment.unique())
+    with c1:
+        target = st.selectbox("Target segment", segments)
+        available = int((customers.action_segment == target).sum())
+        size = st.slider("Campaign size", 10, max(10, available), min(500, max(10, available)), 10)
+        action = st.selectbox("Objective", ["RETENTION","UPSELL","LOYALTY_REWARD","REACTIVATION","WIN_BACK"])
+        channel = st.selectbox("Channel", ["email","sms","direct_mail","push"])
+        response = st.slider("Assumed response rate", 1.0, 40.0, 15.0, 0.5) / 100
+        aov = st.slider("Incremental spend per response (£)", 10.0, 200.0, 65.0, 5.0)
+        discount = st.slider("Discount", 0.0, 30.0, 12.0, 1.0) / 100
+        fixed = st.number_input("Fixed setup cost (£)", 0.0, 10000.0, 150.0, 25.0)
+    with c2:
+        result = ScenarioSimulator().simulate_campaign(customers, target, action, size, channel, response, aov, discount, fixed)
+        r1,r2,r3 = st.columns(3)
+        r1.metric("Expected responders", f"{result['expected_responders']:,}")
+        r2.metric("Campaign cost", money(result['total_campaign_cost_gbp']))
+        r3.metric("Projected ROI", f"{result['roi_percent']:.1f}%")
+        st.metric("Expected net value", money(result['expected_net_value_gbp']))
+        st.caption(f"80% simulated range for net value: {money(result['net_value_80pct_range'][0])} to {money(result['net_value_80pct_range'][1])}")
+        chart = pd.DataFrame({"Component":["Fixed cost","Contact cost","Discount cost","Gross incremental revenue"],"Amount (£)":[result['fixed_cost_gbp'],result['channel_cost_gbp'],result['discount_cost_gbp'],result['gross_incremental_revenue_gbp']]})
+        st.plotly_chart(px.bar(chart,x="Component",y="Amount (£)"), use_container_width=True)
+
+elif page == "Model Evaluation":
+    hero("Model Evaluation & Monitoring", "Evidence-first model governance: holdout performance, uncertainty calibration, risk calibration, segment stability, data validation, and drift.")
+
+    validation_audit = d.get("validation_audit")
+    bench = pd.DataFrame(evaluation.get("benchmark_results", []))
+    cov = evaluation.get("interval_coverage", {}) or {}
+    cal = evaluation.get("calibration", {}) or {}
+    stability = evaluation.get("segment_stability", {}) or {}
+    sparse = pd.DataFrame(evaluation.get("sparse_history_sensitivity", []))
+    overall = monitoring.get("overall_health", {}) or {}
+
+    # Governance summary
+    g1, g2, g3, g4, g5 = st.columns(5)
+    g1.metric("Holdout customers", f"{len(bench):,}" if not bench.empty else "—")
+    g2.metric("80% interval coverage", f"{cov.get('empirical_coverage_pct', 0):.1f}%" if cov else "—")
+    g3.metric("Inactivity Brier", f"{cal.get('brier_score', 0):.4f}" if cal else "—")
+    g4.metric("Segment agreement", f"{stability.get('agreement_rate_pct', 0):.1f}%" if stability else "—")
+    g5.metric("Monitoring", overall.get("overall_status", "PENDING"))
+
+    tabs = st.tabs(["Performance", "Uncertainty", "Risk Calibration", "Segment Stability", "Data Validation", "Drift & Monitoring"])
+
+    with tabs[0]:
+        st.subheader("Holdout benchmark")
+        st.caption("Predictions are evaluated against the future holdout revenue window. Lower MAE/RMSE is better; higher Spearman indicates stronger customer-value ranking association.")
+        if bench.empty:
+            st.info("Holdout evaluation report is not available. Run the full pipeline to generate it.")
+        else:
+            # Evaluation reports use presentation-friendly column names such as
+            # "MAE (£)" and "RMSE (£)".  Normalise them for charting so the page
+            # remains compatible with both current and older reports.
+            bench_plot = bench.rename(columns={
+                "MAE (£)": "MAE",
+                "RMSE (£)": "RMSE",
+            }).copy()
+            metric_cols = [c for c in ["Model", "MAE", "RMSE", "Spearman Rank Corr"] if c in bench_plot.columns]
+            st.dataframe(bench_plot[metric_cols], use_container_width=True, hide_index=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                fig = px.bar(bench_plot, x="Model", y="MAE", title="MAE — lower is better", text_auto=".0f")
+                fig.update_layout(height=360, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            with c2:
+                fig = px.bar(bench_plot, x="Model", y="Spearman Rank Corr", title="Spearman rank correlation — higher is better", text_auto=".3f")
+                fig.update_layout(height=360, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+
+            if "Probabilistic CLV" in bench.get("Model", pd.Series(dtype=str)).astype(str).values:
+                p = bench[bench["Model"].astype(str) == "Probabilistic CLV"].iloc[0]
+                st.info(f"Interpretation: the probabilistic CLV model should be read across all benchmark metrics. Its ranking correlation and error metrics can tell different stories; the dashboard does not collapse them into a single score.")
+
+        st.subheader("Sparse-history sensitivity")
+        if sparse.empty:
+            st.info("Sparse-history analysis is not available in the current report.")
+        else:
+            st.dataframe(sparse, use_container_width=True, hide_index=True)
+
+    with tabs[1]:
+        st.subheader("CLV prediction interval coverage")
+        if not cov:
+            st.info("Interval coverage is not available. Run the evaluation pipeline.")
+        else:
+            target = float(cov.get("nominal_target", .80)) * 100
+            actual = float(cov.get("empirical_coverage_pct", 0))
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Nominal coverage", f"{target:.0f}%")
+            c2.metric("Observed coverage", f"{actual:.2f}%")
+            c3.metric("Coverage gap", f"{actual-target:+.2f} pp")
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=actual, number={"suffix":"%"}, gauge={"axis":{"range":[0,100]},"threshold":{"line":{"width":4},"value":target}}))
+            fig.update_layout(height=320, margin=dict(l=20,r=20,t=30,b=20), title="Empirical vs nominal interval coverage")
+            st.plotly_chart(fig, use_container_width=True)
+            if abs(actual - target) > 5:
+                st.warning(cov.get("status", "Coverage is materially below the nominal target."))
+            else:
+                st.success(cov.get("status", "Coverage is within tolerance."))
+            c = pd.DataFrame({"Component":["Inside interval","Below lower bound","Above upper bound"],"Percent":[actual,float(cov.get("below_lower_bound_pct",0)),float(cov.get("above_upper_bound_pct",0))]})
+            st.plotly_chart(px.bar(c,x="Component",y="Percent",text_auto=".1f",title="Outcome placement relative to interval"),use_container_width=True)
+
+    with tabs[2]:
+        st.subheader("Inactivity probability calibration")
+        if not cal:
+            st.info("Calibration report is not available.")
+        else:
+            c1,c2 = st.columns([.7,1.3])
+            c1.metric("Brier score", f"{cal.get('brier_score',0):.4f}")
+            c1.caption("Lower is better. Interpret together with event prevalence and the reliability table.")
+            bins = pd.DataFrame(cal.get("calibration_bins", []))
+            if not bins.empty:
+                with c2:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=bins["mean_predicted_prob"],y=bins["observed_inactivity_rate"],mode="lines+markers",name="Observed"))
+                    fig.add_trace(go.Scatter(x=[0,1],y=[0,1],mode="lines",name="Perfect calibration",line=dict(dash="dash")))
+                    fig.update_layout(xaxis_title="Mean predicted probability",yaxis_title="Observed inactivity rate",height=360)
+                    st.plotly_chart(fig,use_container_width=True)
+                st.dataframe(bins,use_container_width=True,hide_index=True)
+
+    with tabs[3]:
+        st.subheader("Segment stability and transitions")
+        if not stability:
+            st.info("Segment stability is not present in the evaluation report. Re-run the pipeline.")
+        else:
+            c1,c2 = st.columns(2)
+            c1.metric("Agreement rate",f"{stability.get('agreement_rate_pct',0):.2f}%")
+            c2.metric("Evaluated customers",f"{stability.get('evaluated_customers',0):,}")
+            matrix=pd.DataFrame(stability.get("transition_matrix", []))
+            if not matrix.empty:
+                st.dataframe(matrix,use_container_width=True,hide_index=True)
+                idx_col=matrix.columns[0]
+                heat=matrix.set_index(idx_col)
+                fig=px.imshow(heat,text_auto=True,aspect="auto",labels={"x":"Target segment","y":"Baseline segment","color":"Share"},title="Row-normalized segment transition matrix")
+                st.plotly_chart(fig,use_container_width=True)
+            st.caption("Segment agreement is a stability diagnostic, not a model-quality score by itself.")
+
+    with tabs[4]:
+        st.subheader("Data validation status")
+        if validation_audit is None:
+            st.warning("The validation contract is packaged, but no generated audit_trail.json is present in this project snapshot.")
+            st.code("python -m src.validation.validator", language="bash")
+            st.caption("This is intentionally shown as pending rather than presenting fabricated validation results.")
+        else:
+            status = validation_audit.get("validation_status", "REVIEW")
+            if status == "PASS":
+                st.success(f"Validation status: {status}")
+            else:
+                st.warning(f"Validation status: {status}")
+            a,b,c,d = st.columns(4)
+            a.metric("Raw rows",f"{validation_audit.get('initial_row_count',0):,}")
+            b.metric("Clean rows",f"{validation_audit.get('final_clean_row_count',0):,}")
+            c.metric("Retention",f"{validation_audit.get('retention_rate_pct',0):.2f}%")
+            d.metric("Duplicate rows",f"{validation_audit.get('metrics',{}).get('duplicate_rows',0):,}")
+            vm = validation_audit.get("metrics",{})
+            checks=pd.DataFrame({"Check":["Missing customer IDs","Cancellations","Non-positive quantity","Non-positive price","Quantity outliers","Price outliers","Invalid dates","Exact duplicates"],"Rows":[vm.get("missing_customer_rows",0),vm.get("cancelled_rows",0),vm.get("return_rows",0),vm.get("zero_price_rows",0),vm.get("outlier_quantity_rows",0),vm.get("outlier_price_rows",0),vm.get("invalid_date_rows",0),vm.get("duplicate_rows",0)]})
+            st.dataframe(checks,use_container_width=True,hide_index=True)
+
+    with tabs[5]:
+        st.subheader("Production-style drift monitoring")
+        if not monitoring:
+            st.warning("No monitoring report is available. Run the full pipeline to generate drift diagnostics.")
+        else:
+            max_psi=float(overall.get("max_psi",0))
+            c1,c2,c3=st.columns(3)
+            c1.metric("Maximum PSI",f"{max_psi:.4f}")
+            c2.metric("Overall status",overall.get("overall_status","UNKNOWN"))
+            c3.metric("PSI threshold", "0.10 / 0.25")
+            rows=[]
+            for key,val in monitoring.items():
+                if isinstance(val,dict) and "psi_value" in val:
+                    rows.append({"Feature":key.replace("psi_",""),"PSI":float(val["psi_value"]),"Status":val.get("status","")})
+            if rows:
+                drift_df=pd.DataFrame(rows).sort_values("PSI",ascending=False)
+                fig=px.bar(drift_df,x="PSI",y="Feature",orientation="h",color="Status",title="Population Stability Index")
+                fig.add_vline(x=.10,line_dash="dash",annotation_text="Moderate threshold")
+                fig.add_vline(x=.25,line_dash="dot",annotation_text="Alert threshold")
+                fig.update_layout(height=420)
+                st.plotly_chart(fig,use_container_width=True)
+                st.dataframe(drift_df,use_container_width=True,hide_index=True)
+            seg_drift=pd.DataFrame(monitoring.get("segment_population_drift", []))
+            if not seg_drift.empty:
+                st.subheader("Segment population drift")
+                fig=px.bar(seg_drift,x="segment",y="drift_pct_points",title="Target minus baseline segment share (percentage points)")
+                st.plotly_chart(fig,use_container_width=True)
+

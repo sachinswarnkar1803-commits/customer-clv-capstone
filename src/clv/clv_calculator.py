@@ -1,17 +1,10 @@
-"""Probabilistic Customer Lifetime Value (CLV) calculation with uncertainty intervals.
-
-Integrates BG/NBD transaction forecasts and Gamma-Gamma monetary expectations with
-monthly discounting and bootstrap posterior sampling to compute:
-- Expected CLV across configurable horizons (30, 90, 180, 365 days)
-- 80% Empirical Prediction Intervals [CLV_lower, CLV_upper]
-- Uncertainty relative spread ratio
-"""
+"""Probabilistic customer lifetime value with predictive uncertainty intervals."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional
+
 import numpy as np
 import pandas as pd
-from lifetimes import BetaGeoFitter, GammaGammaFitter
 
 from src.config.config import AppConfig, get_project_root, load_config
 from src.models.purchase_model import PurchaseModelBGNBD
@@ -19,114 +12,81 @@ from src.models.monetary_model import MonetaryModelGammaGamma
 
 
 class ProbabilisticCLVCalculator:
-    """Computes probabilistic discounted CLV and uncertainty intervals."""
+    """Compute discounted CLV and empirical Monte Carlo prediction intervals."""
 
     def __init__(self, config: Optional[AppConfig] = None):
         self.config = config or load_config()
         self.root = get_project_root()
-        self.discount_rate = self.config.clv.discount_rate  # Monthly discount rate (e.g., 0.01 = 1%)
-        self.horizons = self.config.clv.horizons_days       # [30, 90, 180, 365]
-        self.confidence_level = self.config.clv.confidence_level  # 0.80
+        self.discount_rate = self.config.clv.discount_rate
+        self.horizons = self.config.clv.horizons_days
+        self.confidence_level = self.config.clv.confidence_level
 
     def compute_clv(
         self,
         features_df: pd.DataFrame,
         bgf_wrapper: PurchaseModelBGNBD,
         ggf_wrapper: MonetaryModelGammaGamma,
-        n_bootstrap_samples: int = 50,
+        n_simulation_samples: int = 500,
     ) -> pd.DataFrame:
-        """Compute expected CLV and empirical uncertainty intervals for all customers.
+        """Compute expected CLV and predictive uncertainty.
 
-        Args:
-            features_df: Customer feature table with frequency, recency_days, customer_tenure_days, monetary_value.
-            bgf_wrapper: Fitted PurchaseModelBGNBD.
-            ggf_wrapper: Fitted MonetaryModelGammaGamma.
-            n_bootstrap_samples: Number of posterior draws for uncertainty interval estimation.
-
-        Returns:
-            pd.DataFrame: Table enriched with CLV and interval columns across horizons.
+        The interval is intentionally named a *Monte Carlo prediction interval*.
+        It captures stochastic future purchase counts and basket values, but does
+        not claim to include fitted-parameter uncertainty as a bootstrap CI.
         """
         df = features_df.copy()
-        n_customers = len(df)
-        print(f"[CLVCalculator] Computing probabilistic CLV for {n_customers:,} customers...")
-
-        # 1. Base expected purchase counts and expected monetary basket
         p_alive = bgf_wrapper.predict_p_alive(df)
         exp_monetary = ggf_wrapper.predict_expected_average_spend(df)
+        df["p_alive"] = np.clip(np.asarray(p_alive, dtype=float), 0.0, 1.0)
+        df["exp_avg_monetary"] = np.maximum(np.nan_to_num(np.asarray(exp_monetary, dtype=float), nan=0.0), 0.0)
 
-        df["p_alive"] = p_alive
-        df["exp_avg_monetary"] = exp_monetary
-
-        # Enforce BG/NBD inputs
-        freq = df["frequency"].values.astype(int)
-        rec = df["recency_days"].values.copy()
-        rec[freq == 0] = 0.0
-        tenure = df["customer_tenure_days"].values
-
-        # 2. Compute Expected CLV across each configurable horizon
         for horizon_days in self.horizons:
             months = horizon_days / 30.0
-            # Expected transactions over horizon
-            exp_purch = bgf_wrapper.predict_expected_purchases(df, horizon_days=horizon_days)
+            exp_purch = np.maximum(np.asarray(bgf_wrapper.predict_expected_purchases(df, horizon_days), dtype=float), 0.0)
             df[f"exp_purchases_{horizon_days}d"] = exp_purch
-
-            # Monthly discount factor over horizon midpoint
             discount_factor = 1.0 / ((1.0 + self.discount_rate) ** (months / 2.0))
+            df[f"clv_expected_{horizon_days}d"] = np.round(exp_purch * df["exp_avg_monetary"] * discount_factor, 2)
 
-            # Expected CLV = E[Purchases] * E[Monetary Spend] * Discount Factor
-            exp_clv = (exp_purch * exp_monetary * discount_factor).round(2)
-            df[f"clv_expected_{horizon_days}d"] = exp_clv
+        horizon = self.config.clv.default_horizon_days
+        months = horizon / 30.0
+        discount = 1.0 / ((1.0 + self.discount_rate) ** (months / 2.0))
+        mean_purch = np.clip(np.nan_to_num(df[f"exp_purchases_{horizon}d"].to_numpy(float), nan=0.0), 0.0, 300.0)
+        mean_spend = np.clip(np.nan_to_num(df["exp_avg_monetary"].to_numpy(float), nan=0.0), 0.0, 20000.0)
 
-        # 3. Uncertainty Intervals for the Default Horizon (e.g. 90 days)
-        def_horizon = self.config.clv.default_horizon_days
-        def_months = def_horizon / 30.0
-        def_discount = 1.0 / ((1.0 + self.discount_rate) ** (def_months / 2.0))
-        mean_purch = np.nan_to_num(df[f"exp_purchases_{def_horizon}d"].values, nan=0.0, posinf=300.0, neginf=0.0)
-        mean_purch = np.clip(mean_purch, 0.0, 300.0)
+        samples = max(100, int(n_simulation_samples))
+        rng = np.random.default_rng(self.config.project.random_seed)
+        # Gamma shape is estimated from the cross-sectional basket distribution;
+        # using a robust fixed shape avoids pretending this is parameter bootstrap.
+        positive_spend = mean_spend[mean_spend > 0]
+        shape = 4.0
+        if len(positive_spend) > 20 and np.std(positive_spend) > 0:
+            shape = float(np.clip(np.mean(positive_spend) ** 2 / np.var(positive_spend), 0.5, 20.0))
 
-        mean_spend = np.nan_to_num(df["exp_avg_monetary"].values, nan=45.0, posinf=20000.0, neginf=1.0)
-        mean_spend = np.clip(mean_spend, 1.0, 20000.0)
+        sample_clv = np.empty((samples, len(df)), dtype=float)
+        for i in range(samples):
+            purchases = rng.poisson(mean_purch)
+            spend = np.where(
+                mean_spend > 0,
+                rng.gamma(shape=shape, scale=np.maximum(mean_spend, 1e-9) / shape),
+                0.0,
+            )
+            sample_clv[i] = purchases * spend * discount
 
-        alpha_level = (1.0 - self.confidence_level) / 2.0
-        lower_q = alpha_level * 100
-        upper_q = (1.0 - alpha_level) * 100
-
-        print(f"[CLVCalculator] Simulating {n_bootstrap_samples} posterior draws for {int(self.confidence_level*100)}% intervals...")
-        rng = np.random.default_rng(seed=self.config.project.random_seed)
-
-        k_shape = 4.0
-        sample_clvs = np.zeros((n_bootstrap_samples, n_customers))
-
-        for s in range(n_bootstrap_samples):
-            # Poisson variation around transaction rate
-            sim_purchases = rng.poisson(lam=mean_purch)
-            # Spend variation per transaction
-            sim_spend = rng.gamma(shape=k_shape, scale=mean_spend / k_shape)
-            sim_clv = sim_purchases * sim_spend * def_discount
-            sample_clvs[s, :] = sim_clv
-
-        clv_lower = np.percentile(sample_clvs, lower_q, axis=0)
-        clv_upper = np.percentile(sample_clvs, upper_q, axis=0)
-
-        df[f"clv_lower_{int(self.confidence_level*100)}pct"] = np.round(clv_lower, 2)
-        df[f"clv_upper_{int(self.confidence_level*100)}pct"] = np.round(clv_upper, 2)
-
-        # Relative uncertainty spread = (upper - lower) / (expected + 1)
-        spread = (clv_upper - clv_lower) / (df[f"clv_expected_{def_horizon}d"].values + 1.0)
-        df["clv_uncertainty_spread"] = np.round(spread, 3)
-
-        print(f"[CLVCalculator] Average Expected {def_horizon}-Day CLV: £{df[f'clv_expected_{def_horizon}d'].mean():.2f} "
-              f"(80% Avg Interval: [£{clv_lower.mean():.2f}, £{clv_upper.mean():.2f}])")
-
+        alpha = (1.0 - self.confidence_level) / 2.0
+        lower = np.quantile(sample_clv, alpha, axis=0)
+        upper = np.quantile(sample_clv, 1.0 - alpha, axis=0)
+        level = int(round(self.confidence_level * 100))
+        df[f"clv_lower_{level}pct"] = np.round(lower, 2)
+        df[f"clv_upper_{level}pct"] = np.round(upper, 2)
+        expected = np.maximum(df[f"clv_expected_{horizon}d"].to_numpy(float), 0.0)
+        df["clv_uncertainty_spread"] = np.round((upper - lower) / (expected + 1.0), 3)
+        df["clv_interval_method"] = "Monte Carlo predictive interval"
         return df
 
     def explain_uncertainty_interval(self) -> str:
-        """Provide a rigorous mathematical and business explanation of the uncertainty interval."""
+        level = int(self.confidence_level * 100)
         return (
-            f"The {int(self.confidence_level*100)}% prediction interval [CLV_lower, CLV_upper] "
-            "represents the empirical 10th-to-90th percentile range of simulated customer value "
-            f"over the next {self.config.clv.default_horizon_days} days. It accounts for stochastic "
-            "arrival times (Poisson transaction variance) and basket size dispersion (Gamma monetary variance). "
-            "It does NOT guarantee that actual individual outcomes will never fall outside the interval, "
-            "but provides marketers with risk bounds for budgeting customer acquisition and retention incentives."
+            f"The {level}% interval is an empirical Monte Carlo prediction interval for the next "
+            f"{self.config.clv.default_horizon_days} days. It propagates stochastic variation in future "
+            "transaction counts and basket values. It is not a bootstrap confidence interval for fitted model parameters."
         )

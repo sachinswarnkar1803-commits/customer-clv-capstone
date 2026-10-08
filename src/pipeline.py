@@ -106,16 +106,20 @@ def run_full_pipeline(config_path: Optional[str] = None) -> bool:
     # STEP 7: FIT INACTIVITY SURVIVAL MODEL (LIFELINES)
     # ---------------------------------------------------------
     print("\n[Step 7] Fitting survival analysis inactivity hazard models...")
-    surv_model = InactivitySurvivalModel(config).fit(train_features)
+    surv_model = InactivitySurvivalModel(config).fit(
+        train_features,
+        transactions_df=train_df,
+        observation_cutoff=config.temporal_splits.train_end_date,
+    )
     inactivity_preds = surv_model.predict_inactivity_probabilities(train_features)
     surv_model.save_model()
 
     # ---------------------------------------------------------
-    # STEP 8: PROBABILISTIC CLV & BOOTSTRAP UNCERTAINTY INTERVALS
+    # STEP 8: PROBABILISTIC CLV & MONTE CARLO PREDICTIVE INTERVALS
     # ---------------------------------------------------------
-    print("\n[Step 8] Estimating probabilistic CLV across horizons with 80% prediction intervals...")
+    print("\n[Step 8] Estimating probabilistic CLV across horizons with 80% Monte Carlo prediction intervals...")
     clv_calc = ProbabilisticCLVCalculator(config)
-    clv_df = clv_calc.compute_clv(train_features, bgf_model, ggf_model, n_bootstrap_samples=50)
+    clv_df = clv_calc.compute_clv(train_features, bgf_model, ggf_model, n_simulation_samples=500)
 
     # Merge inactivity survival probabilities
     clv_df = pd.concat([clv_df, inactivity_preds], axis=1)
@@ -220,8 +224,20 @@ def run_full_pipeline(config_path: Optional[str] = None) -> bool:
         nominal_level=0.80,
     )
 
-    # Inactivity actual outcome: was customer inactive during holdout?
-    actual_inactive = (eval_df["actual_holdout_rev"] == 0.0).astype(int)
+    # Inactivity calibration target: no purchase during the first 90 days after the
+    # training cutoff. This matches the model's 90-day inactivity horizon.
+    train_cutoff = pd.to_datetime(config.temporal_splits.train_end_date)
+    calibration_end = train_cutoff + pd.Timedelta(days=90)
+    first_90d = holdout_df[
+        (pd.to_datetime(holdout_df["transaction_date"]) > train_cutoff)
+        & (pd.to_datetime(holdout_df["transaction_date"]) <= calibration_end)
+    ]
+    purchased_90d = set(first_90d["customer_id"].astype(str).unique())
+    actual_inactive = pd.Series(
+        (~eval_df.index.astype(str).isin(purchased_90d)).astype(int),
+        index=eval_df.index,
+        name="actual_inactive_90d",
+    )
     inact_pred = final_customer_df.set_index("customer_id")["inactivity_prob_90d"]
     calib_report = evaluator.evaluate_calibration(inact_pred, actual_inactive)
 
@@ -231,28 +247,36 @@ def run_full_pipeline(config_path: Optional[str] = None) -> bool:
         y_pred=prob_clv_pred,
     )
 
-    evaluator.save_evaluation_report(bench_results, cov_report, calib_report, sparse_report)
-
     # ---------------------------------------------------------
-    # STEP 13: PRODUCTION MONITORING & DRIFT ANALYSIS
+    # STEP 13: PRODUCTION MONITORING, SEGMENT STABILITY & DRIFT
     # ---------------------------------------------------------
-    print("\n[Step 13] Running monitoring & Population Stability Index (PSI) drift analysis...")
+    print("\n[Step 13] Running segment stability and Population Stability Index monitoring...")
+    # Initialise the monitoring service before evaluating drift.  This was
+    # previously referenced without construction, causing a NameError after
+    # segmentation completed successfully.
     monitor = SystemMonitor(config)
-    # Build holdout features for drift comparison
-    holdout_features = feature_builder.build_customer_features(
-        holdout_df,
+    # Target features include customer history accumulated through the monitoring
+    # cutoff. This preserves customer history instead of treating the holdout window
+    # as a brand-new customer population.
+    target_features = feature_builder.build_customer_features(
+        clean_df,
         observation_cutoff=config.temporal_splits.holdout_end_date,
     )
-    # Temporary holdout CLV for drift test
-    holdout_clv_df = clv_calc.compute_clv(holdout_features, bgf_model, ggf_model, n_bootstrap_samples=10)
-    holdout_segmented = segmenter.segment_customers(holdout_clv_df)
+    target_clv_df = clv_calc.compute_clv(target_features, bgf_model, ggf_model, n_simulation_samples=250)
+    target_segmented = segmenter.segment_customers(target_clv_df)
+
+    baseline_segments = final_customer_df.set_index("customer_id")["action_segment"]
+    target_segments = target_segmented.set_index("customer_id")["action_segment"]
+    segment_stability = evaluator.evaluate_segment_stability(baseline_segments, target_segments)
 
     drift_report = monitor.evaluate_drift(
         baseline_features=train_features,
-        target_features=holdout_features,
+        target_features=target_features,
         baseline_clv=final_customer_df,
-        target_clv=holdout_segmented,
+        target_clv=target_segmented,
     )
+    drift_report["segment_stability"] = segment_stability
+    evaluator.save_evaluation_report(bench_results, cov_report, calib_report, sparse_report, segment_stability)
     monitor.save_monitoring_report(drift_report)
 
     elapsed = round(time.time() - start_time, 2)

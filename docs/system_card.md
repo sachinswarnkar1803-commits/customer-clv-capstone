@@ -2,7 +2,7 @@
 
 **System Name**: Probabilistic Customer Lifetime Value with Cohort Dynamics and Next-Best-Action Segments  
 **Course**: T.Y. B.Sc. Data Science – Semester V  
-**Status**: Capstone Production-Grade Implementation  
+**Status**: Industry-Oriented Capstone Implementation  
 
 ---
 
@@ -17,7 +17,7 @@ The system operates as a modular, end-to-end data science application:
 | **Feature Store** | `src/features/` | Clean transactions | `customer_features.parquet`, RFM scores |
 | **Cohort Dynamics** | `src/cohort/` | Transaction timestamps | `cohort_retention_matrix.csv`, `cohort_summary.csv` |
 | **Statistical Models**| `src/models/` | RFM & tenure matrices | Serialized BG/NBD, Gamma-Gamma, Survival models |
-| **CLV Engine** | `src/clv/` | Model instances | `clv_expected_90d`, 80% bootstrap intervals |
+| **CLV Engine** | `src/clv/` | Model instances | `clv_expected_90d`, 80% Monte Carlo predictive intervals |
 | **Prescriptive Engine**| `src/segmentation/`, `src/nba/` | Probabilistic CLV & risk | `customer_clv_segments.parquet` |
 | **Simulation** | `src/simulation/` | Campaign parameters | Projected revenues, costs, ROI distributions |
 | **Evaluation** | `src/evaluation/` | Holdout transactions | `model_evaluation_report.json` |

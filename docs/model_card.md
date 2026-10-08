@@ -19,7 +19,7 @@ The platform employs a composite ensemble of probabilistic and survival models:
    - *Pre-Condition*: Independence verification between frequency $x$ and monetary basket $m_x$.
 3. **Weibull Parametric Survival Model**:
    - *Purpose*: Continuous hazard modeling of customer dormancy to produce explicit 30, 60, and 90-day inactivity probabilities.
-4. **Bootstrap Posterior Simulation Engine**:
+4. **Monte Carlo Predictive Simulation Engine**:
    - *Purpose*: 80% empirical prediction intervals $[CLV_{lower}, CLV_{upper}]$ and relative spread metrics.
 
 ---

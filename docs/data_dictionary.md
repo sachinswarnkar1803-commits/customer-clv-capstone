@@ -78,8 +78,8 @@ Customer-level aggregated behavioral and RFM metrics respecting temporal cutoff 
 | `exp_purchases_90d` | Float64 | Expected repeat transactions in next 90 days ($E[Y(t)]$) | Demand forecasting |
 | `exp_avg_monetary` | Float64 | Expected average spend per order from Gamma-Gamma | Spending potential |
 | `clv_expected_90d` | Float64 | Probabilistic expected CLV (£) over 90 days | Customer valuation |
-| `clv_lower_80pct` | Float64 | 80% Confidence Interval Lower Bound | Conservative value baseline |
-| `clv_upper_80pct` | Float64 | 80% Confidence Interval Upper Bound | Optimistic potential ceiling |
+| `clv_lower_80pct` | Float64 | 80% Monte Carlo Predictive Interval Lower Bound | Conservative value baseline |
+| `clv_upper_80pct` | Float64 | 80% Monte Carlo Predictive Interval Upper Bound | Optimistic potential ceiling |
 | `action_segment` | String | Action-oriented segment (e.g., "High Value At Risk") | Operational grouping |
 | `nba_recommended_action` | String | Next-Best-Action (e.g., `RETENTION`, `UPSELL`) | Prescriptive decision |
 | `nba_priority` | String | `HIGH`, `MEDIUM`, `LOW` | Campaign execution rank |

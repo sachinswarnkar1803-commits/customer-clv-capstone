@@ -8,7 +8,7 @@
 
 ## 1. System Overview and End-to-End Pipeline
 
-The platform is designed as an enterprise-grade, reproducible customer intelligence framework that processes transactional retail data, prevents temporal leakage, models probabilistic customer longevity and basket values, and delivers prescriptive Next-Best-Action (NBA) strategies.
+The platform is designed as an industry-oriented capstone, reproducible customer intelligence framework that processes transactional retail data, prevents temporal leakage, models probabilistic customer longevity and basket values, and delivers prescriptive Next-Best-Action (NBA) strategies.
 
 ```mermaid
 flowchart TD
@@ -22,7 +22,7 @@ flowchart TD
     H --> I[RFM Baseline Segmenter]
     H --> J[BG/NBD Probabilistic Repeat Purchase Model]
     H --> K[Gamma-Gamma Monetary Value Model]
-    H --> L[Parametric Survival & Inactivity Estimator]
+    H --> L[Time-to-Inactivity Survival Estimator]
     J & K & L --> M[Probabilistic CLV & Uncertainty Engine]
     M & I --> N[Baseline vs Probabilistic Evaluator]
     M --> O[Action-Oriented Segmentation Engine]
@@ -72,7 +72,7 @@ flowchart TD
 ### 2.7 Probabilistic CLV & Uncertainty Quantification (`src/clv/clv_calculator.py`)
 - Integrates $E[Y(t)]$ and $E[M]$ with monthly discount factor $d$:
   $$\text{CLV}_i(t) = \int_0^t \frac{E[Y(\tau)] \cdot E[M]}{(1 + d)^\tau} d\tau$$
-- Employs residual bootstrap simulation across the parameter posteriors to generate empirical 80% confidence intervals $[\text{CLV}_{lower}, \text{CLV}_{upper}]$, exposing value uncertainty for business decisions.
+- Uses Monte Carlo predictive simulation of future transaction counts and basket values to generate empirical 80% prediction intervals; it does not claim fitted-parameter bootstrap uncertainty $[\text{CLV}_{lower}, \text{CLV}_{upper}]$, exposing value uncertainty for business decisions.
 
 ### 2.8 Action-Oriented Segmentation & Next-Best-Action (`src/segmentation/segmenter.py`, `src/nba/nba_engine.py`)
 - Translates probabilistic outputs ($CLV$, $P(\text{Alive})$, $P(\text{Inactivity})$) into deterministic business segments:

@@ -1,0 +1,26 @@
+schema:
+  expected_sheets:
+    - Year 2009-2010
+    - Year 2010-2011
+  required_columns:
+    - Invoice
+    - StockCode
+    - Description
+    - Quantity
+    - InvoiceDate
+    - Price
+    - Customer ID
+    - Country
+quality_rules:
+  drop_missing_customer_id: true
+  exclude_cancellations: true
+  min_quantity: 1
+  min_unit_price: 0.001
+  max_quantity_outlier: 50000
+  max_price_outlier: 50000
+  deduplicate: true
+temporal_rules:
+  train_end: 2010-12-09
+  validation_end: 2011-06-30
+  holdout_end: 2011-12-09
+  no_future_features: true

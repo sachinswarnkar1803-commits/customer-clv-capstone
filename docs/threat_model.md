@@ -23,7 +23,7 @@ Customer relationship data, purchase histories, and predictive valuations carry 
 | **Tampering / Malicious Input** | Adversarial or corrupted transaction CSV/Excel with negative prices, SQL injection strings, or NaN exploits injected into pipeline. | **Medium** | Strict input schema validation via `Pydantic` and typed pipelines; automatic sanitization of non-numeric, out-of-range, and malformed records. |
 | **Repudiation / Audit Failure** | Marketer or model execution results modified without historical audit trail of cleaning or segmentation decisions. | **Low** | Full audit trail logged with row counts, dropped record reasons, and immutable run timestamps in `reports/data_quality_report.json`. |
 | **Information Disclosure** | Plaintext exposure of customer purchase volumes, unit pricing negotiations, or internal customer IDs to unauthorized internal users. | **High** | Customer IDs can be hashed/pseudonymized (`anonymize_customer_id: true`); raw zip/excel files are gitignored and excluded from version control. |
-| **Denial of Service (DoS)** | Billion-row CSV upload or unbounded bootstrap simulations causing out-of-memory (OOM) CPU starvation. | **Medium** | Configurable chunking, memory bounds, vectorized NumPy operations, and constrained bootstrap iteration caps ($N \le 200$). |
+| **Denial of Service (DoS)** | Billion-row CSV upload or unbounded Monte Carlo simulations causing out-of-memory (OOM) CPU starvation. | **Medium** | Configurable chunking, memory bounds, vectorized NumPy operations, and constrained Monte Carlo iteration caps ($N \le 200$). |
 | **Elevation of Privilege** | Dashboard user overrides campaign budget constraints or sends unauthorized marketing vouchers directly. | **Medium** | The campaign simulator operates strictly in an isolated synthetic simulation sandbox; no live dispatch integration exists without external authorization. |
 
 ---
@@ -36,7 +36,7 @@ Customer relationship data, purchase histories, and predictive valuations carry 
 
 ### 3.2 Model Misuse & False Precision
 - **Risk**: Marketers treating point-estimate CLV predictions as guaranteed future revenue, causing over-budgeting.
-- **Remediation**: The system mandates 80% bootstrap confidence intervals ($[CLV_{lower}, CLV_{upper}]$) and explicitly surfaces uncertainty metrics.
+- **Remediation**: The system mandates 80% Monte Carlo predictive intervals ($[CLV_{lower}, CLV_{upper}]$) and explicitly surfaces uncertainty metrics.
 
 ### 3.3 Synthetic Data Conflation
 - **Risk**: Stakeholders confusing simulated campaign response uplifts with real customer observations.

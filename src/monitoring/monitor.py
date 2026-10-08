@@ -1,4 +1,4 @@
-"""Production-grade data quality and prediction drift monitoring module.
+"""Data quality and prediction drift monitoring module.
 
 Computes Population Stability Index (PSI), distribution shift statistics,
 and segment population transitions to detect data or concept drift across time windows.

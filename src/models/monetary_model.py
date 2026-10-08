@@ -167,7 +167,7 @@ class MonetaryModelGammaGamma:
         models_dir = self.root / self.config.paths.models_dir
         target = Path(filepath) if filepath else models_dir / "gamma_gamma_model.pkl"
         with open(target, "rb") as f:
-            save_data = pickle.load(f)
+            save_data = pickle.load(f)  # nosec B301 - local, repository-generated model artifact only
         self.model = GammaGammaFitter(penalizer_coef=save_data.get("penalizer_coef", 0.01))
         self.model.params_ = save_data["params_"]
         self.population_avg_monetary = save_data.get("population_avg_monetary", 0.0)

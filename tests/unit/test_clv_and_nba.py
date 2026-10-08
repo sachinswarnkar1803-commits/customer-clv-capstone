@@ -44,7 +44,7 @@ def fitted_models_and_features():
 def test_clv_calculator_outputs(fitted_models_and_features):
     df, bgf, ggf = fitted_models_and_features
     clv_calc = ProbabilisticCLVCalculator()
-    clv_df = clv_calc.compute_clv(df, bgf, ggf, n_bootstrap_samples=30)
+    clv_df = clv_calc.compute_clv(df, bgf, ggf, n_simulation_samples=30)
 
     assert "clv_expected_90d" in clv_df.columns
     assert "clv_expected_365d" in clv_df.columns
@@ -61,7 +61,7 @@ def test_clv_calculator_outputs(fitted_models_and_features):
 def test_action_segmentation(fitted_models_and_features):
     df, bgf, ggf = fitted_models_and_features
     clv_calc = ProbabilisticCLVCalculator()
-    clv_df = clv_calc.compute_clv(df, bgf, ggf, n_bootstrap_samples=20)
+    clv_df = clv_calc.compute_clv(df, bgf, ggf, n_simulation_samples=20)
 
     segmenter = ActionSegmenter()
     seg_df = segmenter.segment_customers(clv_df)
@@ -74,7 +74,7 @@ def test_action_segmentation(fitted_models_and_features):
 def test_nba_engine_prescriptions(fitted_models_and_features):
     df, bgf, ggf = fitted_models_and_features
     clv_calc = ProbabilisticCLVCalculator()
-    clv_df = clv_calc.compute_clv(df, bgf, ggf, n_bootstrap_samples=20)
+    clv_df = clv_calc.compute_clv(df, bgf, ggf, n_simulation_samples=20)
     seg_df = ActionSegmenter().segment_customers(clv_df)
 
     nba = NBAEngine()

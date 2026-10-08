@@ -49,3 +49,15 @@ Customer data science systems frequently degrade when customers have limited pur
 ### Failure Modes Documented
 1. **Extreme Spend Outliers**: Top 1% wholesale buyers place massive multi-thousand pound sporadic orders, inflating error metrics in the 4+ purchase bucket.
 2. **One-Time Buyers**: 1,500 customers placed only a single order during the training window. Our empirical Bayes shrinkage safely pulls them toward the population prior rather than producing divergent predictions.
+## Dashboard governance view
+
+The Streamlit Model Evaluation & Monitoring workspace exposes six evidence areas:
+
+1. **Performance** — holdout MAE, RMSE, Spearman ranking correlation, and sparse-history sensitivity.
+2. **Uncertainty** — nominal versus empirical CLV interval coverage and outcome placement.
+3. **Risk Calibration** — inactivity Brier score and reliability bins.
+4. **Segment Stability** — agreement rate and row-normalized transition matrix.
+5. **Data Validation** — persisted validation audit evidence when the validation pipeline has been executed.
+6. **Drift & Monitoring** — PSI by feature/prediction plus segment population drift and health thresholds.
+
+The dashboard deliberately distinguishes missing generated evidence from a successful result; it does not substitute fabricated metrics when reports are absent.
