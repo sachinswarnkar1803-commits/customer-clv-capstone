@@ -53,6 +53,37 @@ graph TD
     O --> P[Interactive Streamlit Dashboard: dashboard/app.py]
 ```
 
+### Architecture Diagram Generation with Archify
+
+```bash
+npx skills add tt-ali/archify -g
+```
+
+▸ More installation options and update-check details
+
+---
+
+### 2. Start from a description — no repository required
+
+```text
+Use Archify to draw: Browser -> API -> Redis cache -> PostgreSQL fallback.
+```
+
+For source evidence, open a repository and ask:
+
+> Analyze this repository, then use archify to create a high-level runtime architecture diagram. Show 8–12 core components, one primary path, external dependencies, and trust boundaries. Put supporting detail in cards instead of adding more edges.
+
+---
+
+### 3. Refine in chat
+
+Continue with focused requests such as `add Redis`, `move auth to the left`, or `highlight the rollback path`. Archify keeps the typed source available for targeted iteration.
+
+---
+
+### Choose the right diagram
+▸ Five diagram types, architecture comparisons, and examples
+
 ---
 
 ## 3. Dataset Information & Provenance
@@ -128,6 +159,12 @@ customer-clv-capstone/
 │   ├── synthetic/                   # Isolated synthetic campaign datasets
 │   └── validation/                  # Schema validation audit records
 ├── docs/
+│   ├── PRD.md                       # Product Requirements Document
+│   ├── ARCHITECTURE.md              # System Architecture Specification
+│   ├── RULES.md                     # Engineering Rules & Guidelines
+│   ├── DESIGN.md                    # Technical & Algorithmic Design
+│   ├── TASKS.md                     # Work Breakdown Structure & Milestones
+│   ├── MEMORY.md                    # Project Memory & Architectural Context
 │   ├── architecture/                # Architecture diagrams and specifications
 │   ├── data_dictionary.md           # Field-by-field schema documentation
 │   ├── contribution_log.md          # Student activity and peer review log
